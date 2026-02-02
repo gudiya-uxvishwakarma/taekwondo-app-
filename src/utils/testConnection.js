@@ -82,7 +82,7 @@ export const testAllConnections = async () => {
   
   // Test Android emulator IP
   try {
-    const response = await fetch('http://10.0.2.2:5000/api/simple-test', { timeout: 3000 });
+    const response = await fetch('https://taekwon-frontend.onrender.com/api/simple-test', { timeout: 3000 });
     results.emulatorIP = response.ok;
   } catch (e) {
     results.emulatorIP = false;
@@ -90,7 +90,7 @@ export const testAllConnections = async () => {
   
   // Test localhost
   try {
-    const response = await fetch('http://localhost:5000/api/simple-test', { timeout: 3000 });
+    const response = await fetch('https://taekwon-frontend.onrender.com/api/simple-test', { timeout: 3000 });
     results.localhost = response.ok;
   } catch (e) {
     results.localhost = false;

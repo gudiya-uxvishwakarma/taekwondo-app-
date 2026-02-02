@@ -1,5 +1,5 @@
+import api from './api';
 import API_CONFIG from '../config/api';
-import ApiService from './apiService';
 import { getToken } from '../utils/tokenStorage';
 
 class CertificateService {
@@ -20,20 +20,26 @@ class CertificateService {
       // Try authenticated endpoint first, fallback to public if needed
       let response;
       try {
-        // Use ApiService which handles authentication automatically
+        // Use centralized API service which handles authentication automatically
         const params = studentId ? { studentId } : {};
-        response = await ApiService.get(this.endpoints.LIST, params);
+        response = await api.get(this.endpoints.LIST, params);
       } catch (authError) {
         console.log('⚠️ Authenticated endpoint failed, trying public endpoint:', authError.message);
         // Fallback to public endpoint if authentication fails
-        response = await ApiService.get('/certificates/public');
+        response = await api.get('/certificates/public');
       }
       
-      console.log(' Backend response:', response);
+      console.log('📥 Backend response:', response);
       
       if (response.status === 'success') {
         const certificates = response.data?.certificates || response.certificates || [];
         console.log('✅ Certificates loaded from backend:', certificates.length);
+        
+        // Add safety check for certificates array
+        if (!Array.isArray(certificates)) {
+          console.log('⚠️ Certificates is not an array, using fallback');
+          return this.getSampleCertificates();
+        }
         
         return this.formatCertificates(certificates);
       } else {
@@ -55,24 +61,76 @@ class CertificateService {
 
   // Format certificates data from backend
   formatCertificates(certificates) {
-    return certificates.map(cert => ({
-      id: cert.id || cert.certificateId || `CERT-${Date.now()}`,
-      title: cert.title || cert.achievementType || cert.certificateName || 'Certificate',
-      student: cert.studentName || cert.student || 'Student Name',
-      type: cert.category || cert.beltLevel || cert.type || cert.certificateType || 'Achievement',
-      issueDate: cert.formattedIssueDate || this.formatDate(cert.issuedDate || cert.issueDate || cert.createdAt || new Date()),
-      status: cert.status === 'Issued' ? 'Active' : (cert.status || (cert.isActive ? 'Active' : 'Draft')),
-      color: this.getCertificateColor(cert.title || cert.achievementType || cert.type),
-      icon: this.getCertificateIcon(cert.title || cert.achievementType || cert.type),
-      description: cert.description || `Awarded for ${cert.title || cert.achievementType}`,
-      instructor: cert.instructor || cert.issuedBy || 'Academy Director',
-      verificationCode: cert.verificationCode || cert.qrCode || cert.id || '',
-      beltLevel: cert.beltLevel || cert.category || cert.level || '',
-      promotion: cert.promotion || '',
-      isIssued: cert.status === 'Issued' || cert.status === 'Active' || cert.isActive || true,
-      isPending: cert.status === 'pending' || cert.status === 'draft',
-      year: cert.year || new Date(cert.issuedDate || cert.issueDate || new Date()).getFullYear(),
-    }));
+    // Safety check for certificates array
+    if (!Array.isArray(certificates)) {
+      console.log('⚠️ formatCertificates: Input is not an array, returning empty array');
+      return [];
+    }
+    
+    return certificates.map((cert, index) => {
+      try {
+        // Safely access nested achievementDetails properties
+        const achievementDetails = cert?.achievementDetails || {};
+        
+        return {
+          id: cert?.id || cert?.certificateId || `CERT-${Date.now()}-${index}`,
+          title: cert?.title || cert?.achievementType || achievementDetails?.title || cert?.certificateName || 'Certificate',
+          student: cert?.studentName || cert?.student || 'Student Name',
+          type: cert?.category || cert?.beltLevel || cert?.type || cert?.certificateType || 'Achievement',
+          issueDate: cert?.formattedIssueDate || this.formatDate(cert?.issuedDate || cert?.issueDate || cert?.createdAt || new Date()),
+          status: cert?.status === 'Issued' ? 'Active' : (cert?.status || (cert?.isActive ? 'Active' : 'Draft')),
+          color: this.getCertificateColor(cert?.title || cert?.achievementType || cert?.type),
+          icon: this.getCertificateIcon(cert?.title || cert?.achievementType || cert?.type),
+          description: cert?.description || achievementDetails?.description || `Awarded for ${cert?.title || cert?.achievementType}`,
+          instructor: cert?.instructor || achievementDetails?.examiner || cert?.issuedBy || 'Academy Director',
+          verificationCode: cert?.verificationCode || cert?.qrCode || cert?.id || '',
+          beltLevel: cert?.beltLevel || cert?.category || achievementDetails?.level || cert?.level || '',
+          promotion: cert?.promotion || '',
+          isIssued: cert?.status === 'Issued' || cert?.status === 'Active' || cert?.isActive || true,
+          isPending: cert?.status === 'pending' || cert?.status === 'draft',
+          year: cert?.year || new Date(cert?.issuedDate || cert?.issueDate || new Date()).getFullYear(),
+          // Add examiner property for backward compatibility
+          examiner: achievementDetails?.examiner || cert?.instructor || 'Academy Director',
+          // Add achievement details for full compatibility
+          achievementDetails: {
+            title: achievementDetails?.title || cert?.title || cert?.achievementType,
+            description: achievementDetails?.description || cert?.description,
+            level: achievementDetails?.level || cert?.beltLevel || cert?.level,
+            grade: achievementDetails?.grade || cert?.grade,
+            examiner: achievementDetails?.examiner || cert?.instructor || 'Academy Director'
+          }
+        };
+      } catch (certError) {
+        console.error(`❌ Error formatting certificate at index ${index}:`, certError);
+        // Return a safe fallback certificate
+        return {
+          id: `CERT-ERROR-${index}`,
+          title: 'Certificate',
+          student: 'Student Name',
+          type: 'Achievement',
+          issueDate: new Date().toLocaleDateString(),
+          status: 'Active',
+          color: '#007AFF',
+          icon: 'card-membership',
+          description: 'Certificate',
+          instructor: 'Academy Director',
+          verificationCode: `ERROR-${index}`,
+          beltLevel: '',
+          promotion: '',
+          isIssued: true,
+          isPending: false,
+          year: new Date().getFullYear(),
+          examiner: 'Academy Director',
+          achievementDetails: {
+            title: 'Certificate',
+            description: 'Certificate',
+            level: '',
+            grade: '',
+            examiner: 'Academy Director'
+          }
+        };
+      }
+    });
   }
 
   // Get certificate color based on type
@@ -146,7 +204,7 @@ class CertificateService {
       // Try verification endpoint
       let response;
       try {
-        response = await ApiService.post(this.endpoints.VERIFY, {
+        response = await api.post(this.endpoints.VERIFY, {
           verificationCode: certificateId
         });
       } catch (verifyError) {
@@ -188,7 +246,15 @@ class CertificateService {
       console.log('📊 Loading certificate statistics...');
       
       const params = studentId ? { studentId } : {};
-      const response = await ApiService.get(this.endpoints.STATS, params);
+      
+      // Try both endpoints for compatibility
+      let response;
+      try {
+        response = await api.get(this.endpoints.STATS, params);
+      } catch (statsError) {
+        console.log('⚠️ Stats endpoint failed, trying statistics endpoint...');
+        response = await api.get('/certificates/statistics', params);
+      }
 
       if (response.status === 'success') {
         return response.data;
@@ -289,7 +355,7 @@ class CertificateService {
     try {
       console.log('🧪 Testing backend connection with authentication...');
       
-      const response = await ApiService.get('/health');
+      const response = await api.get('/health');
       return response.status === 'success';
     } catch (error) {
       console.log('❌ Backend connection test failed:', error.message || error);
@@ -309,7 +375,7 @@ class CertificateService {
       console.log('👤 Loading current user certificates...');
       
       // This will use the authenticated user's token to get their specific certificates
-      const response = await ApiService.get(this.endpoints.LIST);
+      const response = await api.get(this.endpoints.LIST);
       
       if (response.status === 'success') {
         const certificates = response.data?.certificates || response.certificates || [];

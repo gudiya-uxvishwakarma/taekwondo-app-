@@ -74,7 +74,7 @@
 //         <View style={styles.troubleshootContainer}>
 //           <Text style={styles.troubleshootTitle}>💡 Troubleshooting:</Text>
 //           <Text style={styles.troubleshootItem}>1. Make sure backend is running: npm start</Text>
-//           <Text style={styles.troubleshootItem}>2. Check backend URL: http://10.0.2.2:5000</Text>
+//           <Text style={styles.troubleshootItem}>2. Check backend URL: https://taekwon-frontend.onrender.com</Text>
 //           <Text style={styles.troubleshootItem}>3. Restart Metro bundler if needed</Text>
 //           <Text style={styles.troubleshootItem}>4. Check firewall settings</Text>
 //         </View>

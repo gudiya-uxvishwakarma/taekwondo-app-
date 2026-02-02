@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,9 @@ import {
   StatusBar,
   Modal,
   Image,
-  ActivityIndicator,
-  RefreshControl,
 } from 'react-native';
-import { useStudent } from '../context/StudentContext';
 import { useNavigation } from '../context/NavigationContext';
 import { StudentService } from '../services';
-import { handleApiError } from '../utils/helpers';
 import IconVerificationScreen from './IconVerificationScreen';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -38,12 +34,11 @@ const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = () => {
-  const { student } = useStudent();
   const { navigate } = useNavigation();
   const [showIconTest, setShowIconTest] = useState(false);
 
   // Quick Overview Data - Updated with dynamic calculations
-  const [totalStudents, setTotalStudents] = useState(150); // This will be dynamic from API
+  const [pendingFees, setPendingFees] = useState(3); // This will be dynamic from API
   const [totalEvents, setTotalEvents] = useState(25); // This will be dynamic from API
   const [attendancePercentage, setAttendancePercentage] = useState(95); // This will be dynamic from API
 
@@ -57,12 +52,40 @@ const DashboardScreen = () => {
         // const eventsResponse = await fetch('/api/events/count');
         // const attendanceResponse = await fetch('/api/attendance/percentage');
         
-        // For now, using mock data that changes over time
-        const mockStudents = Math.floor(Math.random() * 50) + 120; // 120-170 students
+        // Try to get real pending fees count from StudentService
+        try {
+          const feesResponse = await StudentService.getFees();
+          if (feesResponse && feesResponse.status === 'success') {
+            let feesArray = [];
+            
+            if (feesResponse.data && feesResponse.data.fees) {
+              feesArray = feesResponse.data.fees;
+            } else if (feesResponse.fees) {
+              feesArray = feesResponse.fees;
+            }
+            
+            // Count pending fees
+            const pendingCount = feesArray.filter(fee => 
+              fee.status && (fee.status.toLowerCase() === 'pending' || fee.status.toLowerCase() === 'overdue')
+            ).length;
+            
+            setPendingFees(pendingCount);
+          } else {
+            // Fallback to mock data
+            const mockPendingFees = Math.floor(Math.random() * 6); // 0-5 pending fees
+            setPendingFees(mockPendingFees);
+          }
+        } catch (feesError) {
+          console.log('Could not fetch fees data for dashboard:', feesError.message);
+          // Fallback to mock data
+          const mockPendingFees = Math.floor(Math.random() * 6); // 0-5 pending fees
+          setPendingFees(mockPendingFees);
+        }
+        
+        // For now, using mock data for other metrics
         const mockEvents = Math.floor(Math.random() * 15) + 20; // 20-35 events
         const mockAttendance = Math.floor(Math.random() * 20) + 80; // 80-100% attendance
         
-        setTotalStudents(mockStudents);
         setTotalEvents(mockEvents);
         setAttendancePercentage(mockAttendance);
       } catch (error) {
@@ -75,25 +98,28 @@ const DashboardScreen = () => {
 
   const quickOverview = [
     { 
-      title: `${totalStudents}`, 
-      subtitle: 'Total Students', 
-      icon: 'people', 
-      color: '#e74c3c',
-      bgColor: '#ffeaea'
+      title: `${pendingFees}`, 
+      subtitle: 'Pending Fees', 
+      icon: 'account-balance-wallet', 
+      color: pendingFees > 0 ? '#f39c12' : '#27ae60', // Orange if pending, green if none
+      bgColor: pendingFees > 0 ? '#fef9e7' : '#eafaf1', // Light orange/green background
+      route: 'Fees'
     },
     { 
       title: `${totalEvents}`, 
       subtitle: 'Total Events', 
       icon: 'event', 
       color: '#e74c3c',
-      bgColor: '#ffeaea'
+      bgColor: '#ffeaea',
+      route: 'Events'
     },
     { 
       title: `${attendancePercentage}%`, 
       subtitle: 'Attendance', 
       icon: 'assignment-turned-in', 
       color: '#e74c3c',
-      bgColor: '#ffeaea'
+      bgColor: '#ffeaea',
+      route: 'Attendance'
     },
   ];
 
@@ -106,6 +132,18 @@ const DashboardScreen = () => {
     { title: 'Fees', icon: 'account-balance-wallet', color: '#e74c3c', route: 'Fees' },
     { title: 'Online Payment', icon: 'payment', color: '#e74c3c', route: 'OnlinePayment' },
   ];
+
+  const handleQuickOverviewPress = (item) => {
+    console.log('Quick Overview pressed:', item.subtitle);
+    console.log('Navigating to:', item.route);
+    
+    // Navigate to the screen using the route property
+    if (item.route && ['Fees', 'Events', 'Attendance'].includes(item.route)) {
+      navigate(item.route);
+    } else {
+      Alert.alert('Coming Soon', `${item.subtitle} feature will be available soon!`);
+    }
+  };
 
   const handleQuickAccessPress = (item) => {
     console.log('Navigating to:', item.route);
@@ -135,7 +173,7 @@ const DashboardScreen = () => {
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.greeting}>Hello!</Text>
-  
+                    <Text style={styles.greeting}>Adarsh</Text>
             </View>
           </View>
           <View style={styles.rightSection}>
@@ -156,13 +194,19 @@ const DashboardScreen = () => {
           <Text style={styles.sectionTitle}>Quick Overview</Text>
           <View style={styles.overviewGrid}>
             {quickOverview.map((item, index) => (
-              <View key={index} style={styles.overviewCard}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.overviewCard}
+                onPress={() => handleQuickOverviewPress(item)}
+                activeOpacity={0.6}
+                underlayColor="#f0f0f0"
+              >
                 <View style={[styles.overviewIconContainer, { backgroundColor: item.bgColor }]}>
                   <Icon name={item.icon} size={20} color={item.color} type="MaterialIcons" />
                 </View>
                 <Text style={styles.overviewValue}>{item.title}</Text>
                 <Text style={styles.overviewLabel}>{item.subtitle}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>

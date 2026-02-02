@@ -39,6 +39,12 @@ const ProfileScreen = () => {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('2024-2025');
   const [showAcademicYearModal, setShowAcademicYearModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [showEditEmailModal, setShowEditEmailModal] = useState(false);
+  const [showEditPhoneModal, setShowEditPhoneModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -103,11 +109,11 @@ const ProfileScreen = () => {
 
   // Mock student data
   const getMockStudentData = () => ({
-    name: 'Nabeen',
+    name: 'Adarsh',
     rollNo: '24233',
     class: 'Class 10',
     section: 'D',
-    email: 'nabeen@gmail.com',
+    email: 'adarsh@gmail.com',
     phone: '9902742426',
     dateOfBirth: '2004-02-10',
     address: 'Parnets Software India Pvt Ltddd',
@@ -131,8 +137,82 @@ const ProfileScreen = () => {
     navigate('Dashboard');
   };
 
-  const handleEditProfile = () => {
-    Alert.alert('Edit Profile', 'Profile editing feature coming soon!');
+  const handleEditName = () => {
+    setEditName(studentData.name);
+    setShowEditNameModal(true);
+  };
+
+  const handleEditEmail = () => {
+    setEditEmail(studentData.email);
+    setShowEditEmailModal(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Name cannot be empty');
+      return;
+    }
+
+    try {
+      // Update the profile data
+      const updatedData = { ...profileData, name: editName.trim() };
+      setProfileData(updatedData);
+      setShowEditNameModal(false);
+      showToastNotification('Name updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update name');
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    if (!editEmail.trim()) {
+      Alert.alert('Error', 'Email cannot be empty');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editEmail.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    try {
+      // Update the profile data
+      const updatedData = { ...profileData, email: editEmail.trim() };
+      setProfileData(updatedData);
+      setShowEditEmailModal(false);
+      showToastNotification('Email updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update email');
+    }
+  };
+
+  const handleEditPhone = () => {
+    setEditPhone(studentData.phone);
+    setShowEditPhoneModal(true);
+  };
+
+  const handleSavePhone = async () => {
+    if (!editPhone.trim()) {
+      Alert.alert('Error', 'Phone number cannot be empty');
+      return;
+    }
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(editPhone.trim())) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    try {
+      // Update the profile data
+      const updatedData = { ...profileData, phone: editPhone.trim() };
+      setProfileData(updatedData);
+      setShowEditPhoneModal(false);
+      showToastNotification('Phone number updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update phone number');
+    }
   };
 
   const handleChangePassword = () => {
@@ -237,9 +317,7 @@ const ProfileScreen = () => {
             <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-            <Icon name="edit" size={24} color="#fff" type="MaterialIcons" />
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#e74c3c" />
@@ -279,9 +357,7 @@ const ProfileScreen = () => {
           <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-          <Icon name="edit" size={24} color="#fff" type="MaterialIcons" />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -310,7 +386,12 @@ const ProfileScreen = () => {
               <Icon name="camera-alt" size={16} color="#fff" type="MaterialIcons" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.studentName}>{studentData.name}</Text>
+          <View style={styles.nameContainer}>
+            <Text style={styles.studentName}>{studentData.name}</Text>
+            <TouchableOpacity style={styles.editNameButton} onPress={() => setShowEditNameModal(true)}>
+              <Icon name="edit" size={16} color="#e74c3c" type="MaterialIcons" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.classInfo}>Class: {studentData.class} - {studentData.section}</Text>
           <Text style={styles.rollInfo}>Roll No: {studentData.rollNo}</Text>
         </View>
@@ -325,6 +406,9 @@ const ProfileScreen = () => {
               <Text style={styles.detailLabel}>Email</Text>
               <Text style={styles.detailValue}>{studentData.email}</Text>
             </View>
+            <TouchableOpacity style={styles.editDetailButton} onPress={() => setShowEditEmailModal(true)}>
+              <Icon name="edit" size={16} color="#e74c3c" type="MaterialIcons" />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.detailItem}>
@@ -333,6 +417,9 @@ const ProfileScreen = () => {
               <Text style={styles.detailLabel}>Phone</Text>
               <Text style={styles.detailValue}>{studentData.phone}</Text>
             </View>
+            <TouchableOpacity style={styles.editDetailButton} onPress={() => setShowEditPhoneModal(true)}>
+              <Icon name="edit" size={16} color="#e74c3c" type="MaterialIcons" />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.detailItem}>
@@ -571,6 +658,133 @@ const ProfileScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Edit Name Modal */}
+      <Modal
+        visible={showEditNameModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditNameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Name</Text>
+              <TouchableOpacity onPress={() => setShowEditNameModal(false)}>
+                <Icon name="close" size={24} color="#7f8c8d" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.editForm}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#bdc3c7"
+                />
+              </View>
+
+              <View style={styles.editButtonsContainer}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditNameModal(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.submitButton} onPress={handleSaveName}>
+                  <Text style={styles.submitButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Email Modal */}
+      <Modal
+        visible={showEditEmailModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditEmailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Email</Text>
+              <TouchableOpacity onPress={() => setShowEditEmailModal(false)}>
+                <Icon name="close" size={24} color="#7f8c8d" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.editForm}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editEmail}
+                  onChangeText={setEditEmail}
+                  placeholder="Enter your email address"
+                  placeholderTextColor="#bdc3c7"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.editButtonsContainer}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditEmailModal(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.submitButton} onPress={handleSaveEmail}>
+                  <Text style={styles.submitButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Phone Modal */}
+      <Modal
+        visible={showEditPhoneModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditPhoneModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Phone Number</Text>
+              <TouchableOpacity onPress={() => setShowEditPhoneModal(false)}>
+                <Icon name="close" size={24} color="#7f8c8d" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.editForm}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#bdc3c7"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+              </View>
+
+              <View style={styles.editButtonsContainer}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditPhoneModal(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.submitButton} onPress={handleSavePhone}>
+                  <Text style={styles.submitButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -608,13 +822,8 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerSpacer: {
+    width: 40, // Same width as edit button to maintain balance
   },
 
   // Content
@@ -707,11 +916,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  editNameButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
   studentName: {
     fontSize: 22,
     fontWeight: '800',
     color: '#2c3e50',
-    marginBottom: 5,
   },
   classInfo: {
     fontSize: 14,
@@ -761,6 +978,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
+  },
+  editDetailButton: {
+    marginLeft: 10,
+    padding: 4,
   },
 
   // Settings
@@ -931,6 +1152,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+
+  // Edit Modal Styles
+  editModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 0,
+    width: '85%',
+    maxHeight: '60%',
+  },
+  editForm: {
+    padding: 20,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  editButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
 
   // Toast Notification Styles

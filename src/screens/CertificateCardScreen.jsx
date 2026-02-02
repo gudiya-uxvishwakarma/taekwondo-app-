@@ -5,9 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
-  Share,
   RefreshControl,
 } from 'react-native';
 import Icon from '../components/common/Icon';
@@ -27,6 +25,7 @@ const CertificateCardScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [viewCertificate, setViewCertificate] = useState(null);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [downloadingCertificate, setDownloadingCertificate] = useState(null);
 
   useEffect(() => {
     loadCertificates();
@@ -115,25 +114,21 @@ const CertificateCardScreen = () => {
 
   const handleDownloadCertificate = async (certificate) => {
     try {
-      console.log('📥 Downloading certificate as PDF:', certificate.title);
+      console.log('📥 Downloading certificate PDF:', certificate.title);
+      setDownloadingCertificate(certificate.id);
       
-      // Use the PDF service to generate and download certificate as PDF
-      await CertificatePDFService.generateAndShareCertificate(certificate);
-      Alert.alert('PDF Downloaded', 'Certificate PDF has been generated and is ready to download/share!');
-    } catch (error) {
-      console.error('❌ PDF Download error:', error);
+      // Use the main download method - direct PDF download only
+      const result = await CertificatePDFService.downloadCertificatePDF(certificate);
       
-      // Fallback to text sharing if PDF generation fails
-      try {
-        const certificateText = CertificatePDFService.generateCertificateText(certificate);
-        await Share.share({ 
-          message: certificateText, 
-          title: `${certificate.title} Certificate PDF - ${certificate.student}` 
-        });
-        Alert.alert('PDF Generated', 'Certificate PDF has been generated successfully!');
-      } catch (fallbackError) {
-        Alert.alert('Error', 'Failed to generate certificate PDF');
+      if (result.success) {
+        console.log('✅ Certificate PDF download completed:', result.fileName);
+      } else {
+        console.error('❌ Certificate download failed:', result.error);
       }
+    } catch (error) {
+      console.error('❌ Certificate download failed:', error);
+    } finally {
+      setDownloadingCertificate(null);
     }
   };
 
@@ -225,24 +220,31 @@ const CertificateCardScreen = () => {
           </View>
         </View>
 
-        {/* Action Buttons - Only View and Download */}
+        {/* Action Buttons - View and Download */}
         <View style={styles.cardActions}>
           <TouchableOpacity 
             style={[styles.actionButton, styles.viewButton]} 
             onPress={() => handleViewCertificate(certificate)}
             activeOpacity={0.7}
           >
-            <Icon name="visibility" size={18} color="#fff" type="MaterialIcons" />
+            <Icon name="visibility" size={16} color="#fff" type="MaterialIcons" />
             <Text style={styles.viewButtonText}>View</Text>
           </TouchableOpacity>
-
+          
           <TouchableOpacity 
             style={[styles.actionButton, styles.downloadButton]} 
             onPress={() => handleDownloadCertificate(certificate)}
             activeOpacity={0.7}
+            disabled={downloadingCertificate === certificate.id}
           >
-            <Icon name="picture-as-pdf" size={18} color="#fff" type="MaterialIcons" />
-            <Text style={styles.downloadButtonText}>Download PDF</Text>
+            {downloadingCertificate === certificate.id ? (
+              <ActivityIndicator size={16} color="#fff" />
+            ) : (
+              <Icon name="download" size={16} color="#fff" type="MaterialIcons" />
+            )}
+            <Text style={styles.downloadButtonText}>
+              {downloadingCertificate === certificate.id ? 'Downloading...' : 'Download PDF'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -318,7 +320,6 @@ const CertificateCardScreen = () => {
           setShowCertificateModal(false);
           setViewCertificate(null);
         }}
-        onDownload={handleDownloadCertificate}
         testID="certificate-view-modal"
       />
     </View>
@@ -502,16 +503,18 @@ const styles = StyleSheet.create({
   cardActions: {
     flexDirection: 'row',
     width: '100%',
+    justifyContent: 'space-between',
     gap: spacing.sm,
   },
   actionButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderRadius: 12,
     gap: spacing.xs,
+    flex: 1,
   },
   viewButton: {
     backgroundColor: '#DC143C',

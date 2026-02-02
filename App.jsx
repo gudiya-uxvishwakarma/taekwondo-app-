@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   SafeAreaView,
@@ -38,14 +39,15 @@ const AppContent = () => {
 function App() {
   return (
     <StudentProvider>
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <StatusBar 
-          barStyle="dark-content" 
-          backgroundColor={colors.primary} 
+          barStyle="light-content" 
+          backgroundColor="#e74c3c" 
           translucent={false}
+          hidden={false}
         />
         <AppContent />
-      </SafeAreaView>
+      </View>
     </StudentProvider>
   );
 }

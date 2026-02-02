@@ -10,10 +10,39 @@ export const runNetworkDiagnostics = async () => {
     recommendations: [],
   };
 
-  // Test 1: Localhost (with ADB reverse)
+  // Test 1: Local development IP
+  console.log('📡 Testing Local development IP...');
+  try {
+    const response = await fetch('https://taekwon-frontend.onrender.com/api/health', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    results.tests.localDevelopment = {
+      success: response.ok,
+      status: response.status,
+      url: 'https://taekwon-frontend.onrender.com/api/health',
+    };
+    if (response.ok) {
+      console.log('✅ Local development works!');
+    } else {
+      console.log('❌ Local development failed:', response.status);
+    }
+  } catch (error) {
+    results.tests.localDevelopment = {
+      success: false,
+      error: error.message,
+      url: 'https://taekwon-frontend.onrender.com/api/health',
+    };
+    console.log('❌ Local development error:', error.message);
+  }
+
+  // Test 2: Localhost (with ADB reverse)
   console.log('📡 Testing localhost (with ADB reverse)...');
   try {
-    const response = await fetch('http://localhost:5000/api/health', {
+    const response = await fetch('https://taekwon-frontend.onrender.com/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -23,7 +52,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localhost = {
       success: response.ok,
       status: response.status,
-      url: 'http://localhost:5000/api/health',
+      url: 'https://taekwon-frontend.onrender.com/api/health',
     };
     if (response.ok) {
       console.log('✅ Localhost works!');
@@ -34,15 +63,15 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localhost = {
       success: false,
       error: error.message,
-      url: 'http://localhost:5000/api/health',
+      url: 'https://taekwon-frontend.onrender.com/api/health',
     };
     console.log('❌ Localhost error:', error.message);
   }
 
-  // Test 2: Android Emulator IP (10.0.2.2)
+  // Test 3: Android Emulator IP (10.0.2.2)
   console.log('📡 Testing Android emulator IP (10.0.2.2)...');
   try {
-    const response = await fetch('http://10.0.2.2:5000/api/health', {
+    const response = await fetch('https://taekwon-frontend.onrender.com/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -52,7 +81,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.emulatorIP = {
       success: response.ok,
       status: response.status,
-      url: 'http://10.0.2.2:5000/api/health',
+      url: 'https://taekwon-frontend.onrender.com/api/health',
     };
     if (response.ok) {
       console.log('✅ Emulator IP works!');
@@ -63,7 +92,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.emulatorIP = {
       success: false,
       error: error.message,
-      url: 'http://10.0.2.2:5000/api/health',
+      url: 'https://taekwon-frontend.onrender.com/api/health',
     };
     console.log('❌ Emulator IP error:', error.message);
   }
@@ -114,13 +143,19 @@ export const runNetworkDiagnostics = async () => {
       '1. Make sure backend server is running: cd Taekwondo_backend && npm start',
       '2. Run ADB port forwarding: adb reverse tcp:5000 tcp:5000',
       '3. Check Windows Firewall settings',
-      '4. Verify backend is accessible at http://localhost:5000/api/health',
+      '4. Verify backend is accessible at https://taekwon-frontend.onrender.com/api/health',
       '5. Try restarting the Android emulator',
+    ];
+  } else if (results.tests.localDevelopment?.success) {
+    results.recommendations = [
+      '✅ Local development URL working',
+      'Your app should connect to the local backend successfully',
+      'All features should work with the local development API',
     ];
   } else if (results.tests.localhost?.success) {
     results.recommendations = [
       '✅ Localhost connection working with ADB reverse',
-      'Your app should be able to connect to the backend',
+      'Your app should be able to connect to the local backend',
       'If login still fails, check backend logs for authentication errors',
     ];
   } else if (results.tests.emulatorIP?.success) {
@@ -143,10 +178,12 @@ export const runNetworkDiagnostics = async () => {
 export const getRecommendedApiUrl = async () => {
   const diagnostics = await runNetworkDiagnostics();
   
-  if (diagnostics.tests.localhost?.success) {
-    return 'http://localhost:5000/api';
+  if (diagnostics.tests.localDevelopment?.success) {
+    return 'https://taekwon-frontend.onrender.com/api';
+  } else if (diagnostics.tests.localhost?.success) {
+    return 'https://taekwon-frontend.onrender.com/api';
   } else if (diagnostics.tests.emulatorIP?.success) {
-    return 'http://10.0.2.2:5000/api';
+    return 'https://taekwon-frontend.onrender.com/api';
   } else {
     return null; // No working connection found
   }

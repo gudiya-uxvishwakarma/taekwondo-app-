@@ -29,7 +29,7 @@ const NetworkDiagnostics = () => {
     console.log('🧪 Testing direct backend connection...');
     
     try {
-      const response = await fetch('http://localhost:5000/api/health', {
+      const response = await fetch('https://taekwon-frontend.onrender.com/api/health', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

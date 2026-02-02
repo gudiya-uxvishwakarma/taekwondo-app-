@@ -8,16 +8,19 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Dimensions,
 } from 'react-native';
-import { useNavigation } from '../context/NavigationContext';
-import { ApiService } from '../services';
+import StudentService from '../services/studentService';
 import API_CONFIG from '../config/api';
+import { useNavigation } from '../context/NavigationContext';
+// Vector Icons
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
-// Icon component using react-native-vector-icons
+// Icon component with proper vector icons
 const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
   const IconComponent = {
     MaterialIcons,
@@ -37,6 +40,8 @@ const EventsScreen = () => {
   const [eventsData, setEventsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Academic years and months data
   const academicYears = [2024, 2025, 2026, 2027, 2028];
@@ -53,7 +58,7 @@ const EventsScreen = () => {
       setLoading(true);
       
       console.log('🔄 Loading events data from backend...');
-      console.log('🌐 Events API URL: /events');
+      console.log('🌐 Events API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.EVENTS.LIST}`);
       
       // Prepare query parameters for backend
       const queryParams = {};
@@ -75,53 +80,23 @@ const EventsScreen = () => {
       
       console.log('📡 Fetching events with params:', queryParams);
       
-      // Try to fetch from backend using ApiService with authentication
+      // Try to fetch from backend using centralized API service with authentication
       let backendEvents = [];
       try {
-        console.log('🔄 Trying authenticated events endpoint: /events');
+        console.log('🔄 Trying events endpoint via StudentService');
         
-        // Use ApiService which automatically handles authentication
-        const result = await ApiService.get('/events', queryParams);
+        // Use StudentService which handles authentication and retry logic
+        const result = await StudentService.getEvents(queryParams);
         
-        console.log('✅ Authenticated events response:', result);
+        console.log('✅ Events response:', result);
         
         if (result && result.status === 'success' && result.data && result.data.events) {
           backendEvents = result.data.events;
           console.log('✅ Got', backendEvents.length, 'events from backend');
         }
       } catch (backendError) {
-        console.log('⚠️ Authenticated request failed:', backendError.message);
-        
-        // Try public endpoint as fallback using direct fetch
-        try {
-          console.log('🔄 Trying public events endpoint as fallback...');
-          
-          const queryString = new URLSearchParams(queryParams).toString();
-          const publicUrl = `${API_CONFIG.BASE_URL}/events-public${queryString ? '?' + queryString : ''}`;
-          
-          console.log('📡 Public URL:', publicUrl);
-          
-          const publicResponse = await fetch(publicUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          if (publicResponse.ok) {
-            const publicResult = await publicResponse.json();
-            console.log('✅ Public events response:', publicResult);
-            
-            if (publicResult && publicResult.status === 'success' && publicResult.data && publicResult.data.events) {
-              backendEvents = publicResult.data.events;
-              console.log('✅ Got', backendEvents.length, 'events from public endpoint');
-            }
-          } else {
-            console.log('❌ Public endpoint HTTP error:', publicResponse.status);
-          }
-        } catch (publicError) {
-          console.log('⚠️ Public endpoint also failed:', publicError.message);
-        }
+        console.log('⚠️ Events request failed:', backendError.message);
+        console.log('🔄 Using fallback sample data...');
       }
       
       // Process events (backend or mock)
@@ -323,6 +298,162 @@ const EventsScreen = () => {
     navigate('Dashboard');
   };
 
+  // Calendar helper functions
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year, month) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const hasEventOnDate = (day, month, year) => {
+    const dateStr = new Date(year, month, day).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    
+    return eventsData.some(event => event.date === dateStr);
+  };
+
+  const handleCalendarPress = () => {
+    setShowCalendar(true);
+  };
+
+  const handleDateSelect = (day) => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    const selectedDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day);
+    setCalendarDate(selectedDate);
+    
+    // Update the year and month filters based on selected date
+    setSelectedYear(selectedDate.getFullYear());
+    setSelectedMonth(monthNames[selectedDate.getMonth()]);
+    
+    setShowCalendar(false);
+  };
+
+  const navigateMonth = (direction) => {
+    const newDate = new Date(calendarDate);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCalendarDate(newDate);
+  };
+
+  // Calendar Modal Component
+  const CalendarModal = () => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const days = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(day);
+    }
+
+    return (
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarContainer}>
+            {/* Calendar Header */}
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity 
+                style={styles.monthNavButton}
+                onPress={() => navigateMonth(-1)}
+              >
+                <Icon name="chevron-left" size={24} color="#e74c3c" type="MaterialIcons" />
+              </TouchableOpacity>
+              
+              <Text style={styles.calendarTitle}>
+                {monthNames[month]} {year}
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.monthNavButton}
+                onPress={() => navigateMonth(1)}
+              >
+                <Icon name="chevron-right" size={24} color="#e74c3c" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Day Names */}
+            <View style={styles.dayNamesRow}>
+              {dayNames.map((dayName) => (
+                <Text key={dayName} style={styles.dayName}>
+                  {dayName}
+                </Text>
+              ))}
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {Array.from({ length: Math.ceil(days.length / 7) }, (_, weekIndex) => (
+                <View key={weekIndex} style={styles.weekRow}>
+                  {days.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => (
+                    <TouchableOpacity
+                      key={dayIndex}
+                      style={[
+                        styles.dayCell,
+                        day === null && styles.emptyDayCell,
+                        day === new Date().getDate() && 
+                        month === new Date().getMonth() && 
+                        year === new Date().getFullYear() && styles.todayCell,
+                        day && hasEventOnDate(day, month, year) && styles.eventDayCell
+                      ]}
+                      onPress={() => day && handleDateSelect(day)}
+                      disabled={day === null}
+                    >
+                      <Text style={[
+                        styles.dayText,
+                        day === new Date().getDate() && 
+                        month === new Date().getMonth() && 
+                        year === new Date().getFullYear() && styles.todayText,
+                        day && hasEventOnDate(day, month, year) && styles.eventDayText
+                      ]}>
+                        {day}
+                      </Text>
+                      {day && hasEventOnDate(day, month, year) && (
+                        <View style={styles.eventIndicator} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            {/* Calendar Footer */}
+            <View style={styles.calendarFooter}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowCalendar(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   // Filter events based on view mode
   const filteredEvents = currentEventsData.filter(event => {
     console.log(`🔍 Filtering event: ${event.name}, Status: ${event.status}, ViewMode: ${viewMode}`);
@@ -345,7 +476,7 @@ const EventsScreen = () => {
             <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Events</Text>
-          <TouchableOpacity style={styles.calendarButton}>
+          <TouchableOpacity style={styles.calendarButton} onPress={handleCalendarPress}>
             <Icon name="event" size={24} color="#fff" type="MaterialIcons" />
           </TouchableOpacity>
         </View>
@@ -367,7 +498,7 @@ const EventsScreen = () => {
           <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Events</Text>
-        <TouchableOpacity style={styles.calendarButton}>
+        <TouchableOpacity style={styles.calendarButton} onPress={handleCalendarPress}>
           <Icon 
             name="event" 
             size={24} 
@@ -549,6 +680,9 @@ const EventsScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Calendar Modal */}
+      <CalendarModal />
     </View>
   );
 };
@@ -800,6 +934,122 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7f8c8d',
     marginTop: 16,
+  },
+
+  // Calendar Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  calendarContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  monthNavButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  dayNamesRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  dayName: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7f8c8d',
+    paddingVertical: 8,
+  },
+  calendarGrid: {
+    marginBottom: 20,
+  },
+  weekRow: {
+    flexDirection: 'row',
+  },
+  dayCell: {
+    flex: 1,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 1,
+    borderRadius: 8,
+  },
+  emptyDayCell: {
+    backgroundColor: 'transparent',
+  },
+  todayCell: {
+    backgroundColor: '#e74c3c',
+  },
+  eventDayCell: {
+    backgroundColor: '#fff3cd',
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  dayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  todayText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  eventDayText: {
+    color: '#856404',
+    fontWeight: '700',
+  },
+  eventIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffc107',
+  },
+  calendarFooter: {
+    alignItems: 'center',
+  },
+  closeButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 

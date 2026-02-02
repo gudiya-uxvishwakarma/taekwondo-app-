@@ -45,6 +45,7 @@ const TabIcon = ({ name, focused }) => {
   return (
     <View style={[
       styles.iconContainer,
+      styles.roundedIconContainer,
       focused && styles.activeIconContainer
     ]}>
       <MaterialIcons name={iconName} size={iconSize} color={iconColor} />
@@ -82,7 +83,7 @@ const TabNavigatorContent = () => {
   const isTabScreen = tabs.some(tab => tab.name === currentScreen);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.screenContainer}>
         {renderActiveScreen()}
       </View>
@@ -107,14 +108,16 @@ const TabNavigatorContent = () => {
           ))}
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const MainTabNavigator = () => {
   return (
     <NavigationProvider>
-      <TabNavigatorContent />
+      <View style={{ flex: 1 }}>
+        <TabNavigatorContent />
+      </View>
     </NavigationProvider>
   );
 };
@@ -159,8 +162,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 54,
     marginBottom: 2,
+  },
+  roundedIconContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#F8F8F8',
   },
   activeIconContainer: {
     backgroundColor: colors.primary + '15',

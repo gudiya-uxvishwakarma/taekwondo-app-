@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,10 +15,10 @@ import {
   StatusBar,
   SafeAreaView,
   Image,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useStudent } from '../../context/StudentContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { runNetworkDiagnostics } from '../../utils/networkDiagnostics';
 
 // Icon component using react-native-vector-icons
 const Icon = ({ name, size = 24, color = '#000' }) => {
@@ -29,13 +30,21 @@ const StudentLoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEmailSuggestions, setShowEmailSuggestions] = useState(false);
   const { login } = useStudent();
+
+  // Admin credentials - only one option
+  const adminCredentials = {
+    email: 'admin@combatwarrior.com',
+    password: 'admin123'
+  };
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const logoScale = useRef(new Animated.Value(0.9)).current;
 
+  // Component mount and animations
   useEffect(() => {
     // Start animations
     Animated.parallel([
@@ -57,6 +66,14 @@ const StudentLoginScreen = () => {
       }),
     ]).start();
   }, []);
+
+  // Handle admin credentials selection
+  const handleAdminCredentialsSelect = () => {
+    setEmail(adminCredentials.email);
+    setPassword(adminCredentials.password);
+    setShowEmailSuggestions(false);
+    console.log('✅ Admin credentials selected');
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -86,7 +103,7 @@ const StudentLoginScreen = () => {
       let errorMessage = 'Invalid email or password. Please try again.';
       
       if (error.message.includes('Network request failed')) {
-        errorMessage = 'Network connection failed. Please check your connection and try the network diagnostics below.';
+        errorMessage = 'Network connection failed. Please check your connection.';
       } else if (error.message.includes('401')) {
         errorMessage = 'Invalid email or password';
       } else if (error.message.includes('timeout')) {
@@ -98,36 +115,6 @@ const StudentLoginScreen = () => {
       Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleNetworkDiagnostics = async () => {
-    Alert.alert(
-      'Network Diagnostics',
-      'Running network diagnostics to check backend connection...',
-      [{ text: 'OK' }]
-    );
-    
-    try {
-      const results = await runNetworkDiagnostics();
-      
-      let message = 'Diagnostics Results:\n\n';
-      
-      Object.entries(results.tests).forEach(([key, test]) => {
-        message += `${key}: ${test.success ? '✅ Success' : '❌ Failed'}\n`;
-        if (test.error) {
-          message += `  Error: ${test.error}\n`;
-        }
-      });
-      
-      message += '\nRecommendations:\n';
-      results.recommendations.forEach(rec => {
-        message += `• ${rec}\n`;
-      });
-      
-      Alert.alert('Network Diagnostics Results', message, [{ text: 'OK' }]);
-    } catch (error) {
-      Alert.alert('Diagnostics Failed', `Error running diagnostics: ${error.message}`);
     }
   };
 
@@ -181,21 +168,24 @@ const StudentLoginScreen = () => {
           </Animated.View>
 
           {/* Login Form */}
-          <Animated.View 
-            style={[
-              styles.formContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
+          <TouchableWithoutFeedback onPress={() => setShowEmailSuggestions(false)}>
+            <Animated.View 
+              style={[
+                styles.formContainer,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
             <View style={styles.formHeader}>
               <View style={styles.formLogoContainer}>
                 <Text style={styles.formIcon}>🔑</Text>
               </View>
               <Text style={styles.formTitle}>Student Login</Text>
-              <Text style={styles.formSubtitle}>Enter your email and password</Text>
+              <Text style={styles.formSubtitle}>
+                Enter your email and password
+              </Text>
             </View>
 
             {/* Email Input */}
@@ -208,13 +198,41 @@ const StudentLoginScreen = () => {
                   style={styles.textInput}
                   value={email}
                   onChangeText={setEmail}
+                  onFocus={() => setShowEmailSuggestions(true)}
                   placeholder="Enter email"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
                 />
+                <TouchableOpacity 
+                  style={styles.suggestionButton}
+                  onPress={() => setShowEmailSuggestions(!showEmailSuggestions)}
+                >
+                  <Icon name="arrow-drop-down" size={20} color="#9ca3af" />
+                </TouchableOpacity>
               </View>
+              
+              {/* Admin Credentials Suggestion */}
+              {showEmailSuggestions && (
+                <View style={styles.suggestionsContainer}>
+                  <TouchableOpacity 
+                    style={styles.suggestionItem}
+                    onPress={handleAdminCredentialsSelect}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.suggestionContent}>
+                      <View style={styles.suggestionIcon}>
+                        <Icon name="admin-panel-settings" size={16} color="#ef4444" />
+                      </View>
+                      <View style={styles.suggestionText}>
+                        <Text style={styles.suggestionEmail}>{adminCredentials.email}</Text>
+                        <Text style={styles.suggestionLabel}>Admin Account</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {/* Password Input */}
@@ -266,10 +284,8 @@ const StudentLoginScreen = () => {
               )}
             </TouchableOpacity>
 
-
-          
-           
-          </Animated.View>
+            </Animated.View>
+          </TouchableWithoutFeedback>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -464,6 +480,52 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 6,
   },
+  suggestionButton: {
+    padding: 6,
+  },
+  suggestionsContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  suggestionItem: {
+    padding: 12,
+    borderRadius: 8,
+  },
+  suggestionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  suggestionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  suggestionText: {
+    flex: 1,
+  },
+  suggestionEmail: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  suggestionLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
   loginButton: {
     backgroundColor: '#ef4444',
     borderRadius: 12,
@@ -493,26 +555,6 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  diagnosticsButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  diagnosticsButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  diagnosticsButtonText: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
   },
 });
 

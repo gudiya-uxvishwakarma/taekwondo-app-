@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -5,17 +6,40 @@ import {
   Modal, 
   TouchableOpacity, 
   ScrollView,
-  Dimensions
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
+import Logo from '../components/common/Logo';
 import CertificatePDFService from '../services/CertificatePDFService';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CERTIFICATE_DIMENSIONS = CertificatePDFService.getCertificateDimensions();
 
-const CertificateViewModal = ({ visible, certificate, onClose, onDownload, testID }) => {
+const CertificateViewModal = ({ visible, certificate, onClose, testID }) => {
+  const [downloading, setDownloading] = useState(false);
+  
   if (!certificate) return null;
+
+  const handleDownloadCertificate = async () => {
+    try {
+      console.log('📥 Downloading certificate PDF from modal:', certificate.title);
+      setDownloading(true);
+      
+      // Use the main download method - direct PDF download only
+      const result = await CertificatePDFService.downloadCertificatePDF(certificate);
+      
+      if (result.success) {
+        console.log('✅ Certificate PDF download completed from modal:', result.fileName);
+      } else {
+        console.error('❌ Certificate download failed from modal:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Certificate download failed from modal:', error);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const getBeltColor = (title) => {
     const titleLower = title?.toLowerCase() || '';
@@ -69,181 +93,130 @@ const CertificateViewModal = ({ visible, certificate, onClose, onDownload, testI
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Certificate View</Text>
           <TouchableOpacity 
-            style={styles.downloadButton}
-            onPress={() => onDownload && onDownload(certificate)}
+            style={styles.downloadButton} 
+            onPress={handleDownloadCertificate}
             activeOpacity={0.7}
+            disabled={downloading}
           >
-            <Icon name="picture-as-pdf" size={24} color={colors.white} type="MaterialIcons" />
+            {downloading ? (
+              <ActivityIndicator size={20} color={colors.white} />
+            ) : (
+              <Icon name="download" size={24} color={colors.white} type="MaterialIcons" />
+            )}
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Beautiful Certificate Design - Exactly matching the provided image */}
+          {/* Professional Certificate Design - Clean View Only */}
           <View style={styles.certificateContainer}>
-            {/* Outer decorative frame */}
+            {/* Outer golden decorative frame */}
             <View style={styles.outerFrame}>
-              {/* Inner certificate content */}
+              {/* Inner certificate content with cream background */}
               <View style={styles.innerFrame}>
+              
+              {/* Top decorative corners */}
+              <View style={styles.topCorners}>
+                <View style={styles.cornerDecoration} />
+                <View style={styles.cornerDecoration} />
+              </View>
+
+              {/* Header with Logo Integration */}
+              <View style={styles.headerSection}>
+                <Logo size="medium" showText={false} />
+                <Text style={styles.organizationName}>TAEKWON-DO ASSOCIATION OF KARNATAKA</Text>
+              </View>
+
+              {/* Certificate Title Section */}
+              <View style={styles.certificateTitleSection}>
+                <Text style={styles.certificateMainTitle}>CERTIFICATE</Text>
+                <View style={styles.titleUnderline} />
+                <Text style={styles.certificateSubTitle}>OF ACHIEVEMENT</Text>
+                <Text style={styles.certificateDiscipline}>IN TAEKWONDO</Text>
+              </View>
+
+              {/* Decorative ornament */}
+              <View style={styles.decorativeOrnament}>
+                <Text style={styles.ornamentText}>❋</Text>
+              </View>
+
+              {/* Presented To Section */}
+              <View style={styles.presentedSection}>
+                <Text style={styles.presentedText}>Proudly Presented To</Text>
+                <Text style={styles.studentName}>{(certificate.student || 'STUDENT NAME').toUpperCase()}</Text>
+                <Text style={styles.achievementText}>
+                  For Outstanding Performance & Dedication in Taekwondo
+                </Text>
+              </View>
+
+              {/* Award Date Section */}
+              <View style={styles.dateSection}>
+                <Text style={styles.awardedText}>Awarded This</Text>
+                <Text style={styles.dateText}>{formatDate(certificate.issueDate)}</Text>
+              </View>
+
+              {/* Level and Rank Section */}
+              <View style={styles.levelRankSection}>
+                <Text style={styles.levelRankText}>
+                  LEVEL: <Text style={[styles.levelValue, { color: getBeltColor(certificate.title) }]}>
+                    {(certificate.title || 'YELLOW BELT').toUpperCase()}
+                  </Text>
+                </Text>
+              </View>
+
+              {/* QR Code Section - Positioned on the right side */}
+              <View style={styles.qrSection}>
+                <View style={styles.qrContainer}>
+                  <View style={styles.qrCode}>
+                    <View style={styles.qrPattern}>
+                      {/* QR Pattern Grid */}
+                      <View style={styles.qrGrid}>
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot]} />
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot]} />
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot, styles.qrDotActive]} />
+                        <View style={[styles.qrDot]} />
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.qrLabel}>VERIFY{'\n'}CERTIFICATE</Text>
+                  <Text style={styles.qrCodeText}>{certificate.verificationCode || certificate.id || 'TKD2026'}</Text>
+                </View>
+              </View>
+
+              {/* Signatures Section */}
+              <View style={styles.signaturesSection}>
+                <View style={styles.signatureLeft}>
+                  <Text style={styles.signatureTitle}>Master Instructor</Text>
+                  <View style={styles.signatureLine} />
+                  <Text style={styles.signatureName}>Master Kim</Text>
+                </View>
                 
-                {/* Top decorative corners */}
-                <View style={styles.topCorners}>
-                  <View style={styles.cornerDecoration} />
-                  <View style={styles.cornerDecoration} />
+                <View style={styles.signatureRight}>
+                  <Text style={styles.signatureTitle}>Academy Director</Text>
+                  <View style={styles.signatureLine} />
+                  <Text style={styles.signatureName}>David Lee</Text>
                 </View>
+              </View>
 
-                {/* Certificate Header with proper logo placement */}
-                <View style={styles.certificateHeader}>
-                  {/* Left Side - Taekwondo Association Logo */}
-                  <View style={styles.leftLogoContainer}>
-                    <View style={styles.logoCircle}>
-                      <View style={styles.logoInnerCircle}>
-                        {/* TF Symbol at top */}
-                        <Text style={styles.tfSymbol}>TF</Text>
-                        
-                        {/* Left martial artist figure */}
-                        <View style={styles.leftMartialArtist}>
-                          <Text style={styles.martialArtistEmoji}>🥋</Text>
-                        </View>
-                        
-                        {/* Center figure */}
-                        <View style={styles.centerFigure}>
-                          <Text style={styles.centerFigureEmoji}>🥋</Text>
-                        </View>
-                        
-                        {/* Right martial artist figure */}
-                        <View style={styles.rightMartialArtist}>
-                          <Text style={styles.martialArtistEmoji}>🥋</Text>
-                        </View>
-                        
-                        {/* Kannada text at bottom */}
-                        <Text style={styles.kannadaText}>ಕರ್ನಾಟಕ</Text>
-                      </View>
-                      
-                      {/* Circular text around the logo */}
-                      <Text style={styles.circularTextTop}>TAEKWON-DO ASSOCIATION</Text>
-                      <Text style={styles.circularTextBottom}>OF KARNATAKA</Text>
-                      
-                      {/* Small decorative circles */}
-                      <View style={styles.decorativeCircleLeft} />
-                      <View style={styles.decorativeCircleRight} />
-                    </View>
-                  </View>
-                  
-                  {/* Center Title */}
-                  <View style={styles.centerTitleContainer}>
-                    <Text style={styles.mainTitle}>CERTIFICATE</Text>
-                    <View style={styles.titleDivider} />
-                    <Text style={styles.subTitle}>OF ACHIEVEMENT</Text>
-                    <Text style={styles.disciplineTitle}>IN TAEKWONDO</Text>
-                  </View>
-                  
-                  {/* Right Side - Mirror logo or decorative element */}
-                  <View style={styles.rightDecorationContainer}>
-                    <View style={styles.rightDecorativeCircle}>
-                      <Text style={styles.rightDecorationText}>🏆</Text>
-                    </View>
-                  </View>
-                </View>
+              {/* Certificate Footer */}
+              <View style={styles.certificateFooter}>
+                <Text style={styles.certificateId}>
+                  CERTIFICATE ID: {certificate.verificationCode || certificate.id || 'TKD20264578'}
+                </Text>
+              </View>
 
-                {/* Decorative gold line */}
-                <View style={styles.goldLine} />
-
-                {/* Presented To Section */}
-                <View style={styles.presentedSection}>
-                  <Text style={styles.presentedText}>Proudly Presented To</Text>
-                  <Text style={styles.studentName}>{(certificate.student || 'RAHUL SHARMA').toUpperCase()}</Text>
-                  <Text style={styles.achievementText}>
-                    For Outstanding Performance & Dedication in Taekwondo
-                  </Text>
-                </View>
-
-                {/* Award Date Section */}
-                <View style={styles.dateSection}>
-                  <Text style={styles.awardedText}>Awarded This</Text>
-                  <Text style={styles.dateText}>{formatDate(certificate.issueDate)}</Text>
-                </View>
-
-                {/* Level and Rank Section */}
-                <View style={styles.levelRankSection}>
-                  <Text style={styles.levelRankText}>
-                    LEVEL: <Text style={[styles.levelValue, { color: getBeltColor(certificate.title) }]}>
-                      {(certificate.title || 'YELLOW BELT').toUpperCase()}
-                    </Text> • RANK: <Text style={styles.rankValue}>
-                      4<Text style={styles.superscript}>TH</Text> GUP
-                    </Text>
-                  </Text>
-                </View>
-
-                {/* Bottom Section with Medal, Seal, and QR */}
-                <View style={styles.bottomSection}>
-                  {/* Left Medal */}
-                  <View style={styles.medalSection}>
-                    <View style={[styles.medalCircle, { backgroundColor: getBeltColor(certificate.title) }]}>
-                      <Icon name="military-tech" size={20} color="#fff" type="MaterialIcons" />
-                    </View>
-                    <Text style={styles.medalLabel}>TAEKWONDO</Text>
-                  </View>
-
-                  {/* Center Academy Seal - Enhanced Design */}
-                  <View style={styles.sealSection}>
-                    <View style={styles.sealCircle}>
-                      <View style={styles.sealInner}>
-                        {/* Taekwondo symbol with better design */}
-                        <View style={styles.sealSymbolContainer}>
-                          <Text style={styles.sealSymbol}>☯</Text>
-                          <Text style={styles.sealSubText}>TKD</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <Text style={styles.sealLabel}>OFFICIAL DOJANG</Text>
-                    <Text style={styles.sealSubLabel}>KARNATAKA</Text>
-                  </View>
-
-                  {/* Right QR Code */}
-                  <View style={styles.qrSection}>
-                    <View style={styles.qrContainer}>
-                      <View style={styles.qrCode}>
-                        <View style={styles.qrPattern}>
-                          <Text style={styles.qrText}>⚡</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.qrLabel}>VERIFY CERTIFICATE</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Signatures Section */}
-                <View style={styles.signaturesSection}>
-                  <View style={styles.signatureLeft}>
-                    <Text style={styles.signatureTitle}>Master Instructor</Text>
-                    <View style={styles.signatureLine} />
-                    <Text style={styles.signatureName}>Master Kim</Text>
-                  </View>
-                  
-                  <View style={styles.signatureRight}>
-                    <Text style={styles.signatureTitle}>David Lee</Text>
-                    <View style={styles.signatureLine} />
-                    <Text style={styles.signatureName}>David Lee</Text>
-                  </View>
-                </View>
-
-                {/* Certificate Footer */}
-                <View style={styles.certificateFooter}>
-                  <View style={styles.footerDivider} />
-                  <Text style={styles.certificateId}>
-                    CERTIFICATE ID: {certificate.verificationCode || certificate.id || 'TKD20264578'}
-                  </Text>
-                  <Text style={styles.websiteUrl}>www.verifycertificate.com</Text>
-                </View>
-
-                {/* Bottom decorative corners */}
-                <View style={styles.bottomCorners}>
-                  <View style={styles.cornerDecoration} />
-                  <View style={styles.cornerDecoration} />
-                </View>
+              {/* Bottom decorative corners */}
+              <View style={styles.bottomCorners}>
+                <View style={styles.cornerDecoration} />
+                <View style={styles.cornerDecoration} />
               </View>
             </View>
           </View>
+        </View>
         </ScrollView>
       </View>
     </Modal>
@@ -284,6 +257,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.white,
     letterSpacing: 0.5,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 44,
+  },
+  downloadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   downloadButton: {
     width: 44,
@@ -297,278 +289,157 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
+    padding: spacing.sm,
   },
   
-  // Certificate Design - Matching the exact image with consistent dimensions
+  // Certificate Design - Professional Layout
   certificateContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 10,
     alignSelf: 'center',
-    width: Math.min(screenWidth - 40, CERTIFICATE_DIMENSIONS.width * 0.9),
-    height: Math.min(screenWidth - 20, CERTIFICATE_DIMENSIONS.width * 0.9) / CERTIFICATE_DIMENSIONS.aspectRatio,
+    width: screenWidth - 20,
+    minHeight: 600,
+    maxWidth: 450,
   },
   
-  // Outer decorative frame (brown border)
+  // Outer golden decorative frame
   outerFrame: {
-    backgroundColor: '#8B4513', // Brown border color
+    backgroundColor: '#DAA520',
     borderRadius: 20,
-    padding: 12,
+    padding: 8,
+    flex: 1,
+    borderWidth: 3,
+    borderColor: '#B8860B',
   },
   
   // Inner certificate frame (cream background)
   innerFrame: {
-    backgroundColor: '#FFF8DC', // Cream background
+    backgroundColor: '#FFF8DC',
     borderRadius: 12,
-    padding: spacing.xl,
+    padding: spacing.lg,
     position: 'relative',
+    minHeight: 580,
+    borderWidth: 2,
+    borderColor: '#DAA520',
   },
   
   // Decorative corners
   topCorners: {
     position: 'absolute',
-    top: 15,
-    left: 15,
-    right: 15,
+    top: 8,
+    left: 8,
+    right: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   bottomCorners: {
     position: 'absolute',
-    bottom: 15,
-    left: 15,
-    right: 15,
+    bottom: 8,
+    left: 8,
+    right: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   cornerDecoration: {
-    width: 30,
-    height: 30,
+    width: 20,
+    height: 20,
     borderWidth: 2,
     borderColor: '#DAA520',
-    borderRadius: 4,
-    backgroundColor: 'rgba(218, 165, 32, 0.1)',
+    borderRadius: 3,
+    backgroundColor: 'rgba(218, 165, 32, 0.2)',
   },
   
-  // Certificate Header
-  certificateHeader: {
-    flexDirection: 'row',
+  // Header Section with Logo
+  headerSection: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
     marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
-  
-  // Left Logo Container - Taekwondo Association Logo
-  leftLogoContainer: {
-    width: 120,
-    alignItems: 'center',
-  },
-  logoCircle: {
-    width: 110,
-    height: 50,
-    borderRadius: 55,
-    backgroundColor: '#FFF8DC',
-    borderWidth: 4,
-    borderColor: '#8B4513',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  logoInnerCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#FFD700', // Yellow background
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: '#8B4513',
-  },
-  
-  // TF Symbol at top
-  tfSymbol: {
-    position: 'absolute',
-    top: 8,
+  organizationName: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#8B4513',
-    letterSpacing: 1,
-  },
-  
-  // Martial artist figures
-  leftMartialArtist: {
-    position: 'absolute',
-    left: 15,
-    top: 25,
-  },
-  centerFigure: {
-    position: 'absolute',
-    top: 20,
-  },
-  rightMartialArtist: {
-    position: 'absolute',
-    right: 15,
-    top: 25,
-  },
-  martialArtistEmoji: {
-    fontSize: 16,
-    color: '#8B4513',
-  },
-  centerFigureEmoji: {
-    fontSize: 18,
-    color: '#8B4513',
-  },
-  
-  // Kannada text at bottom
-  kannadaText: {
-    position: 'absolute',
-    bottom: 8,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8B4513',
-  },
-  
-  // Circular text around logo
-  circularTextTop: {
-    position: 'absolute',
-    top: -25,
-    fontSize: 10,
     fontWeight: '700',
     color: '#8B4513',
     letterSpacing: 1,
     textAlign: 'center',
-    width: 120,
-  },
-  circularTextBottom: {
-    position: 'absolute',
-    bottom: -25,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8B4513',
-    letterSpacing: 1,
-    textAlign: 'center',
-    width: 120,
+    marginTop: spacing.sm,
   },
   
-  // Decorative circles
-  decorativeCircleLeft: {
-    position: 'absolute',
-    left: -15,
-    top: '50%',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FFD700',
-    borderWidth: 2,
-    borderColor: '#8B4513',
-  },
-  decorativeCircleRight: {
-    position: 'absolute',
-    right: -15,
-    top: '50%',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FFD700',
-    borderWidth: 2,
-    borderColor: '#8B4513',
-  },
-  
-  // Right decoration
-  rightDecorationContainer: {
-    width: 120,
+  // Certificate Title Section
+  certificateTitleSection: {
     alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  rightDecorativeCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FF6B35',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#DAA520',
-  },
-  rightDecorationText: {
-    fontSize: 32,
-  },
-  
-  centerTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  mainTitle: {
+  certificateMainTitle: {
     fontSize: 36,
     fontWeight: '900',
-    color: '#2C1810',
-    letterSpacing: 3,
+    color: '#8B4513',
+    letterSpacing: 4,
     textAlign: 'center',
   },
-  titleDivider: {
-    width: 150,
+  titleUnderline: {
+    width: 180,
     height: 3,
     backgroundColor: '#8B4513',
-    marginVertical: spacing.sm,
+    marginVertical: 8,
   },
-  subTitle: {
+  certificateSubTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#8B4513',
     letterSpacing: 2,
     textAlign: 'center',
   },
-  disciplineTitle: {
+  certificateDiscipline: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B8860B',
-    letterSpacing: 1,
+    color: '#DC143C',
+    letterSpacing: 1.5,
     textAlign: 'center',
     marginTop: 4,
   },
   
-  // Gold decorative line
-  goldLine: {
-    height: 3,
-    backgroundColor: '#DAA520',
-    marginVertical: spacing.lg,
-    borderRadius: 2,
+  // Decorative ornament
+  decorativeOrnament: {
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  ornamentText: {
+    fontSize: 24,
+    color: '#DAA520',
   },
   
   // Presented To Section
   presentedSection: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   presentedText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     color: '#8B4513',
     fontStyle: 'italic',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     fontFamily: 'serif',
   },
   studentName: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: '#2C1810',
     textAlign: 'center',
     letterSpacing: 2,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   achievementText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: '#8B4513',
     textAlign: 'center',
     fontStyle: 'italic',
-    lineHeight: 24,
+    lineHeight: 20,
     fontFamily: 'serif',
   },
   
@@ -578,28 +449,28 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   awardedText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: '#8B4513',
     marginBottom: spacing.sm,
     fontFamily: 'serif',
   },
   dateText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#B8860B',
+    color: '#DC143C',
     letterSpacing: 1,
   },
   
   // Level and Rank Section
   levelRankSection: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
-    backgroundColor: '#F5F5DC',
-    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    backgroundColor: 'rgba(218, 165, 32, 0.1)',
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: 15,
-    borderWidth: 3,
+    borderRadius: 12,
+    borderWidth: 10,
     borderColor: '#DAA520',
   },
   levelRankText: {
@@ -611,104 +482,24 @@ const styles = StyleSheet.create({
   },
   levelValue: {
     fontWeight: '900',
-    fontSize: 18,
+    fontSize: 17,
   },
   rankValue: {
     fontWeight: '900',
     color: '#8B4513',
-    fontSize: 18,
+    fontSize: 17,
   },
   superscript: {
     fontSize: 12,
-    lineHeight: 12,
+    lineHeight: 22,
   },
   
-  // Bottom Section (Medal, Seal, QR)
-  bottomSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.sm,
-  },
-  
-  medalSection: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  medalCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    borderWidth: 4,
-    borderColor: '#DAA520',
-  },
-  medalLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8B4513',
-    textAlign: 'center',
-  },
-  
-  sealSection: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  sealCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#8B4513',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    borderWidth: 5,
-    borderColor: '#DAA520',
-  },
-  sealInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFF8DC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#8B4513',
-  },
-  sealSymbolContainer: {
-    alignItems: 'center',
-  },
-  sealSymbol: {
-    fontSize: 20,
-    color: '#8B4513',
-  },
-  sealSubText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#8B4513',
-    letterSpacing: 1,
-    marginTop: -2,
-  },
-  sealLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8B4513',
-    textAlign: 'center',
-  },
-  sealSubLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#B8860B',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  
+  // QR Code Section - Positioned on the right side
   qrSection: {
+    position: 'absolute',
+    right: 20,
+    top: '45%',
     alignItems: 'center',
-    flex: 1,
   },
   qrContainer: {
     alignItems: 'center',
@@ -717,29 +508,53 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 6,
     borderWidth: 3,
     borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   qrPattern: {
-    width: 40,
-    height: 40,
+    width: 45,
+    height: 45,
     backgroundColor: '#333',
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  qrText: {
-    fontSize: 20,
-    color: '#fff',
+  qrGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 30,
+    height: 30,
+  },
+  qrDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: 'transparent',
+    margin: 1,
+  },
+  qrDotActive: {
+    backgroundColor: '#fff',
   },
   qrLabel: {
     fontSize: 9,
     fontWeight: '700',
     color: '#333',
+    textAlign: 'center',
+    lineHeight: 11,
+    marginBottom: 4,
+  },
+  qrCodeText: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#666',
     textAlign: 'center',
   },
   
@@ -749,6 +564,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.xl,
+    marginTop: spacing.xl,
   },
   signatureLeft: {
     alignItems: 'center',
@@ -759,7 +575,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   signatureTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#8B4513',
     fontStyle: 'italic',
@@ -767,13 +583,13 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
   },
   signatureLine: {
-    width: 120,
+    width: 100,
     height: 2,
     backgroundColor: '#8B4513',
     marginBottom: spacing.sm,
   },
   signatureName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#2C1810',
   },
@@ -783,21 +599,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
-  footerDivider: {
-    width: '100%',
-    height: 3,
-    backgroundColor: '#DAA520',
-    marginBottom: spacing.md,
-  },
   certificateId: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#8B4513',
     letterSpacing: 1,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   websiteUrl: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     color: '#B8860B',
   },

@@ -1,25 +1,5 @@
-// Temporary storage solution - replace with AsyncStorage when Metro issue is resolved
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Simple in-memory storage for development (will be lost on app restart)
-const tempStorage = {
-  data: {},
-  setItem: async (key, value) => {
-    tempStorage.data[key] = value;
-    console.log(`💾 Stored ${key}:`, value);
-    return Promise.resolve();
-  },
-  getItem: async (key) => {
-    const value = tempStorage.data[key] || null;
-    console.log(`📖 Retrieved ${key}:`, value);
-    return Promise.resolve(value);
-  },
-  removeItem: async (key) => {
-    delete tempStorage.data[key];
-    console.log(`🗑️ Removed ${key}`);
-    return Promise.resolve();
-  },
-};
+// Real AsyncStorage implementation
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'auth_token';
 const USER_DATA_KEY = 'user_data';
@@ -27,7 +7,8 @@ const USER_DATA_KEY = 'user_data';
 // Token management
 export const saveToken = async (token) => {
   try {
-    await tempStorage.setItem(TOKEN_KEY, token);
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+    console.log('💾 Token saved successfully');
   } catch (error) {
     console.error('Failed to save token:', error);
     throw error;
@@ -36,7 +17,9 @@ export const saveToken = async (token) => {
 
 export const getToken = async () => {
   try {
-    return await tempStorage.getItem(TOKEN_KEY);
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    console.log('📖 Token retrieved:', !!token);
+    return token;
   } catch (error) {
     console.error('Failed to get token:', error);
     return null;
@@ -45,7 +28,8 @@ export const getToken = async () => {
 
 export const removeToken = async () => {
   try {
-    await tempStorage.removeItem(TOKEN_KEY);
+    await AsyncStorage.removeItem(TOKEN_KEY);
+    console.log('🗑️ Token removed');
   } catch (error) {
     console.error('Failed to remove token:', error);
   }
@@ -54,13 +38,8 @@ export const removeToken = async () => {
 // User data management
 export const saveUserData = async (userData) => {
   try {
-    await tempStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
-    
-    // Also save the token if it's included in userData
-    if (userData.token) {
-      await saveToken(userData.token);
-      console.log('💾 Token saved from user data');
-    }
+    await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    console.log('💾 User data saved successfully');
   } catch (error) {
     console.error('Failed to save user data:', error);
     throw error;
@@ -69,8 +48,10 @@ export const saveUserData = async (userData) => {
 
 export const getUserData = async () => {
   try {
-    const userData = await tempStorage.getItem(USER_DATA_KEY);
-    return userData ? JSON.parse(userData) : null;
+    const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+    const parsed = userData ? JSON.parse(userData) : null;
+    console.log('📖 User data retrieved:', !!parsed);
+    return parsed;
   } catch (error) {
     console.error('Failed to get user data:', error);
     return null;
@@ -79,7 +60,8 @@ export const getUserData = async () => {
 
 export const removeUserData = async () => {
   try {
-    await tempStorage.removeItem(USER_DATA_KEY);
+    await AsyncStorage.removeItem(USER_DATA_KEY);
+    console.log('🗑️ User data removed');
   } catch (error) {
     console.error('Failed to remove user data:', error);
   }

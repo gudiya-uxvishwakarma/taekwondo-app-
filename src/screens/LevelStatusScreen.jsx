@@ -10,14 +10,19 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '../context/NavigationContext';
-import { ApiService } from '../services';
+import StudentService from '../services/studentService';
 import API_CONFIG from '../config/api';
+import { useNavigation } from '../context/NavigationContext';
+// Vector Icons
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-// Icon component using react-native-vector-icons
-const Icon = ({ name, size = 24, color = '#000' }) => {
-  return <MaterialIcons name={name} size={size} color={color} />;
+// Icon component with proper vector icons
+const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
+  const IconComponent = {
+    MaterialIcons,
+  }[type];
+
+  return <IconComponent name={name} size={size} color={color} />;
 };
 
 const LevelStatusScreen = () => {
@@ -44,49 +49,24 @@ const LevelStatusScreen = () => {
       
       if (viewMode === 'Belt Levels') {
         console.log('🔄 Loading belt levels from backend...');
-        console.log('🌐 Belt Levels API URL: /belts/levels');
+        console.log('🌐 Belt Levels API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BELTS.LEVELS}`);
         
         // Try to fetch belt levels from backend
         let backendBelts = [];
         try {
-          console.log('🔄 Trying authenticated belt levels endpoint: /belts/levels');
+          console.log('🔄 Trying belt levels via StudentService');
           
-          const result = await ApiService.get('/belts/levels');
+          const result = await StudentService.getBeltLevels();
           
-          console.log('✅ Authenticated belt levels response:', result);
+          console.log('✅ Belt levels response:', result);
           
           if (result && result.status === 'success' && result.data && result.data.belts) {
             backendBelts = result.data.belts;
             console.log('✅ Got', backendBelts.length, 'belt levels from backend');
           }
         } catch (backendError) {
-          console.log('⚠️ Authenticated request failed:', backendError.message);
-          
-          // Try public endpoint as fallback
-          try {
-            console.log('🔄 Trying public belt levels endpoint as fallback...');
-            
-            const publicUrl = `${API_CONFIG.BASE_URL}/belts-public`;
-            
-            const publicResponse = await fetch(publicUrl, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (publicResponse.ok) {
-              const publicResult = await publicResponse.json();
-              console.log('✅ Public belt levels response:', publicResult);
-              
-              if (publicResult && publicResult.status === 'success' && publicResult.data && publicResult.data.belts) {
-                backendBelts = publicResult.data.belts;
-                console.log('✅ Got', backendBelts.length, 'belt levels from public endpoint');
-              }
-            }
-          } catch (publicError) {
-            console.log('⚠️ Public endpoint also failed:', publicError.message);
-          }
+          console.log('⚠️ Belt levels request failed:', backendError.message);
+          console.log('🔄 Using fallback sample data...');
         }
         
         // Process belt levels
@@ -102,11 +82,12 @@ const LevelStatusScreen = () => {
         }
       } else if (viewMode === 'Promotions') {
         console.log('🔄 Loading promotions from backend...');
+        console.log('🌐 Promotions API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BELTS.PROMOTIONS}`);
         
         // Try to fetch promotions from backend
         let backendPromotions = [];
         try {
-          const result = await ApiService.get('/belts/promotions');
+          const result = await StudentService.getPromotions();
           
           if (result && result.status === 'success' && result.data && result.data.promotions) {
             backendPromotions = result.data.promotions;
@@ -114,29 +95,7 @@ const LevelStatusScreen = () => {
           }
         } catch (backendError) {
           console.log('⚠️ Promotions request failed:', backendError.message);
-          
-          // Try public endpoint as fallback
-          try {
-            const publicUrl = `${API_CONFIG.BASE_URL}/promotions-public`;
-            
-            const publicResponse = await fetch(publicUrl, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (publicResponse.ok) {
-              const publicResult = await publicResponse.json();
-              
-              if (publicResult && publicResult.status === 'success' && publicResult.data && publicResult.data.promotions) {
-                backendPromotions = publicResult.data.promotions;
-                console.log('✅ Got', backendPromotions.length, 'promotions from public endpoint');
-              }
-            }
-          } catch (publicError) {
-            console.log('⚠️ Public promotions endpoint also failed:', publicError.message);
-          }
+          console.log('🔄 Using fallback sample data...');
         }
         
         // Process promotions
@@ -152,12 +111,12 @@ const LevelStatusScreen = () => {
         }
       } else if (viewMode === 'Upcoming') {
         console.log('🔄 Loading upcoming belt tests from backend...');
+        console.log('🌐 Belt Tests API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BELTS.TESTS}`);
         
         // Try to fetch upcoming belt tests from backend
         let backendTests = [];
         try {
-          // Try authenticated endpoint first
-          const result = await ApiService.get('/belts/tests', { upcoming: 'true' });
+          const result = await StudentService.getBeltTests({ upcoming: 'true' });
           
           if (result && result.status === 'success' && result.data && result.data.tests) {
             backendTests = result.data.tests;
@@ -165,29 +124,6 @@ const LevelStatusScreen = () => {
           }
         } catch (backendError) {
           console.log('⚠️ Upcoming tests request failed:', backendError.message);
-          
-          // Try public endpoint as fallback
-          try {
-            const publicUrl = `${API_CONFIG.BASE_URL}/belt-tests-public`;
-            
-            const publicResponse = await fetch(publicUrl, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (publicResponse.ok) {
-              const publicResult = await publicResponse.json();
-              
-              if (publicResult && publicResult.status === 'success' && publicResult.data && publicResult.data.tests) {
-                backendTests = publicResult.data.tests;
-                console.log('✅ Got', backendTests.length, 'upcoming tests from public endpoint');
-              }
-            }
-          } catch (publicError) {
-            console.log('⚠️ Public upcoming tests endpoint also failed:', publicError.message);
-          }
         }
         
         // Process upcoming tests

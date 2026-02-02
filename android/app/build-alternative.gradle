@@ -1,12 +1,14 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 
+project.ext.react = [
+    enableHermes: false  // Disable Hermes temporarily
+]
+
 def enableProguardInReleaseBuilds = false
-def jscFlavor = 'org.webkit:android-jsc:+'
-def enableHermes = false
+def hermesEnabled = project.ext.react.get("enableHermes", false)
 
 android {
-    namespace "com.reactnative"
     compileSdkVersion rootProject.ext.compileSdkVersion
     ndkVersion rootProject.ext.ndkVersion
 
@@ -29,9 +31,6 @@ android {
         manifestPlaceholders = [
             usesCleartextTraffic: "true"
         ]
-
-        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "false"
-        buildConfigField "boolean", "IS_HERMES_ENABLED", "false"
     }
 
     buildTypes {
@@ -54,14 +53,26 @@ android {
 
 dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.0.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.9.0")
     
-    // React Native dependencies
-    implementation("com.facebook.react:react-android:0.72.6")
-    implementation("com.facebook.soloader:soloader:0.10.5")
-    
-    implementation jscFlavor
+    // Use JSC instead of Hermes for now
+    implementation("org.webkit:android-jsc:+")
 }
 
+// Vector Icons configuration
+project.ext.vectoricons = [
+    iconFontNames: [ 
+        'MaterialIcons.ttf', 
+        'MaterialCommunityIcons.ttf',
+        'EvilIcons.ttf', 
+        'FontAwesome.ttf',
+        'FontAwesome5_Brands.ttf',
+        'FontAwesome5_Regular.ttf',
+        'FontAwesome5_Solid.ttf',
+        'Ionicons.ttf',
+        'AntDesign.ttf',
+        'Feather.ttf'
+    ]
+]
+
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

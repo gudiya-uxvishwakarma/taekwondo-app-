@@ -1,17 +1,17 @@
 // API Configuration
 const API_CONFIG = {
-  BASE_URL: 'http://192.168.1.22:5000/api', // Working IP address for React Native
-  TIMEOUT: 30000, // Increased timeout for better reliability
+  BASE_URL: 'https://taekwon-frontend.onrender.com/api', // Local development IP - Original
+  TIMEOUT: 10000,
   FALLBACK_URLS: [
-    'http://192.168.1.22:5000/api',  // Your computer's IP - Primary (WORKING)
-    'http://10.0.2.2:5000/api',      // Android emulator mapping
-    'http://localhost:5000/api',     // Localhost (for iOS simulator)
-    'http://127.0.0.1:5000/api'      // Loopback
+    'https://taekwon-frontend.onrender.com/api',  // Local development IP - Primary
+    'https://taekwon-frontend.onrender.com/api',      // Android emulator mapping
+    'https://taekwon-frontend.onrender.com/api',  
+      // Localhost (for iOS simulator)
   ],
   ENDPOINTS: {
     AUTH: {
-      LOGIN: '/auth/login', // Correct auth endpoint
-      REGISTER: '/auth/register',
+      LOGIN: '/login', // Using the correct login endpoint
+      REGISTER: '/login/register',
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',
     },
@@ -22,10 +22,10 @@ const API_CONFIG = {
     },
     CERTIFICATES: {
       LIST: '/certificates',
-      VERIFY: '/certificates/verify',
       DOWNLOAD: '/certificates/download',
       QR: '/certificates/qr',
       STATS: '/certificates/stats',
+      VERIFY: '/certificates/verify',
     },
     EVENTS: {
       LIST: '/events',
@@ -39,6 +39,12 @@ const API_CONFIG = {
       LIST: '/fees',
       PAY: '/fees/pay',
     },
+    BELTS: {
+      LEVELS: '/belts/levels',
+      PROMOTIONS: '/belts/promotions',
+      TESTS: '/belts/tests',
+    },
+  
   },
 };
 

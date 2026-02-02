@@ -5,9 +5,6 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity,
-  Alert,
-  Share,
-  Modal,
   ActivityIndicator,
   RefreshControl,
   StatusBar,
@@ -15,13 +12,13 @@ import {
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import CertificateCard from '../components/certificates/CertificateCard';
-import CertificateViewModal from '../components/certificates/CertificateViewModal';
+import CertificateViewModal from './CertificateViewModal';
 import { useStudent } from '../context/StudentContext';
 import { useNavigation } from '../context/NavigationContext';
 import CertificateService from '../services/CertificateService';
+import API_CONFIG from '../config/api';
 import { handleApiError } from '../utils/helpers';
 import { Certificate } from '../models/Certificate';
-import CertificatePDFService from '../services/CertificatePDFService';
 
 const CertificatesScreen = () => {
   const { student } = useStudent();
@@ -30,14 +27,12 @@ const CertificatesScreen = () => {
   // State management
   const [certificates, setCertificates] = useState([]);
   const [viewCertificate, setViewCertificate] = useState(null);
-  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   
   // Filter states
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Filter options
   const filterOptions = [
@@ -225,59 +220,6 @@ const CertificatesScreen = () => {
     setViewCertificate(cert);
   }, []);
 
-  const handleDownloadCertificate = useCallback((cert) => {
-    setViewCertificate(cert);
-    setShowDownloadOptions(true);
-  }, []);
-
-  const handleDownloadPDF = useCallback(async (cert) => {
-    try {
-      console.log('📥 Downloading certificate:', cert.title);
-      
-      // Use the new PDF service to generate and share certificate
-      await CertificatePDFService.generateAndShareCertificate(cert);
-      
-      setShowDownloadOptions(false);
-      Alert.alert('Success', 'Certificate generated and shared successfully!');
-    } catch (error) {
-      console.error('❌ Download error:', error);
-      
-      // Fallback to text sharing
-      try {
-        const certificateText = CertificatePDFService.generateCertificateText(cert);
-        await Share.share({ 
-          message: certificateText, 
-          title: `${cert.title} Certificate - ${cert.student}` 
-        });
-        
-        setShowDownloadOptions(false);
-        Alert.alert('Success', 'Certificate shared successfully!');
-      } catch (fallbackError) {
-        Alert.alert('Error', 'Failed to download certificate');
-      }
-    }
-  }, []);
-
-  const handleShareCertificate = useCallback(async (cert) => {
-    try {
-      console.log('📤 Sharing certificate:', cert.title);
-      
-      const shareText = CertificatePDFService.generateCertificateText(cert);
-      await Share.share({ 
-        message: shareText, 
-        title: `${cert.title} Certificate - ${cert.student}` 
-      });
-      
-      setShowDownloadOptions(false);
-      console.log('✅ Certificate shared successfully');
-    } catch (error) {
-      console.error('Share error:', error);
-      if (error.message !== 'User did not share') {
-        Alert.alert('Error', 'Failed to share certificate');
-      }
-    }
-  }, []);
-
   // Loading state
   if (isLoading) {
     return (
@@ -440,7 +382,6 @@ const CertificatesScreen = () => {
                 key={cert.id}
                 certificate={cert}
                 onView={handleViewCertificate}
-                onDownload={handleDownloadCertificate}
                 testID={`certificate-card-${cert.id}`}
               />
             ))
@@ -450,76 +391,11 @@ const CertificatesScreen = () => {
 
       {/* Certificate View Modal */}
       <CertificateViewModal
-        visible={viewCertificate !== null && !showDownloadOptions}
+        visible={viewCertificate !== null}
         certificate={viewCertificate}
         onClose={() => setViewCertificate(null)}
         testID="certificate-view-modal"
       />
-
-      {/* Download Options Modal */}
-      <Modal 
-        visible={showDownloadOptions} 
-        transparent={true} 
-        animationType="slide" 
-        onRequestClose={() => setShowDownloadOptions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.downloadModalContent}>
-            <Text style={styles.modalTitle}>Download Certificate</Text>
-            {viewCertificate && (
-              <View style={styles.certificatePreview}>
-                <Text style={styles.certificatePreviewTitle}>{viewCertificate.title}</Text>
-                <Text style={styles.certificatePreviewStudent}>Student: {viewCertificate.student}</Text>
-                <Text style={styles.certificatePreviewType}>{viewCertificate.type}</Text>
-              </View>
-            )}
-            <Text style={styles.downloadSubtitle}>Choose an option to download or share</Text>
-            
-            <TouchableOpacity 
-              style={styles.downloadOption} 
-              onPress={() => handleDownloadPDF(viewCertificate)} 
-              activeOpacity={0.7}
-              accessibilityLabel="Download certificate as PDF"
-              accessibilityRole="button"
-            >
-              <View style={[styles.downloadIconBox, { backgroundColor: colors.error + '15' }]}>
-                <Icon name="picture-as-pdf" color={colors.error} size={28} type="MaterialIcons" />
-              </View>
-              <View style={styles.downloadOptionContent}>
-                <Text style={styles.downloadOptionTitle}>Download PDF</Text>
-                <Text style={styles.downloadOptionDesc}>Save certificate as PDF file</Text>
-              </View>
-              <Icon name="chevron-right" color={colors.textSecondary} size={20} type="MaterialIcons" />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.downloadOption} 
-              onPress={() => handleShareCertificate(viewCertificate)} 
-              activeOpacity={0.7}
-              accessibilityLabel="Share certificate"
-              accessibilityRole="button"
-            >
-              <View style={[styles.downloadIconBox, { backgroundColor: colors.success + '15' }]}>
-                <Icon name="share" color={colors.success} size={28} type="MaterialIcons" />
-              </View>
-              <View style={styles.downloadOptionContent}>
-                <Text style={styles.downloadOptionTitle}>Share Certificate</Text>
-                <Text style={styles.downloadOptionDesc}>Share via WhatsApp, Email, etc.</Text>
-              </View>
-              <Icon name="chevron-right" color={colors.textSecondary} size={20} type="MaterialIcons" />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.downloadCancelButton} 
-              onPress={() => setShowDownloadOptions(false)}
-              accessibilityLabel="Cancel download"
-              accessibilityRole="button"
-            >
-              <Text style={styles.downloadCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -830,164 +706,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted, 
     marginTop: spacing.xs,
     textAlign: 'center',
-  },
-  
-  // Modal Styles
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-    justifyContent: 'flex-end' 
-  },
-  modalContent: { 
-    backgroundColor: colors.white, 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    paddingTop: spacing.xl, 
-    paddingBottom: spacing.lg, 
-    maxHeight: '70%' 
-  },
-  modalTitle: { 
-    fontSize: 22, 
-    fontWeight: '900', 
-    color: '#1a1a2e', 
-    textAlign: 'center', 
-    marginBottom: spacing.lg, 
-    paddingHorizontal: spacing.xl 
-  },
-  modalScroll: { 
-    maxHeight: 400 
-  },
-  
-  // Type Selection Options
-  typeOption: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.xl, 
-    gap: spacing.md, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#f0f0f0' 
-  },
-  typeOptionSelected: { 
-    backgroundColor: '#e3f2fd' 
-  },
-  typeOptionContent: { 
-    flex: 1 
-  },
-  typeOptionText: { 
-    fontSize: 16, 
-    fontWeight: '700', 
-    color: '#1a1a2e', 
-    marginBottom: 2 
-  },
-  typeOptionTextSelected: { 
-    color: colors.primary, 
-    fontWeight: '900' 
-  },
-  typeOptionCount: { 
-    fontSize: 12, 
-    color: colors.textSecondary 
-  },
-  modalCloseButton: { 
-    backgroundColor: colors.primary, 
-    marginHorizontal: spacing.xl, 
-    marginTop: spacing.lg, 
-    paddingVertical: spacing.md, 
-    borderRadius: 12, 
-    alignItems: 'center' 
-  },
-  modalCloseText: { 
-    color: colors.white, 
-    fontSize: 16, 
-    fontWeight: '800' 
-  },
-  
-  // Download Modal Styles
-  downloadModalContent: { 
-    backgroundColor: colors.white, 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    paddingTop: spacing.xl, 
-    paddingBottom: spacing.lg 
-  },
-  certificatePreview: {
-    backgroundColor: '#f8f9fc',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  certificatePreviewTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#1a1a2e',
-    marginBottom: spacing.xs,
-  },
-  certificatePreviewStudent: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  certificatePreviewType: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  downloadSubtitle: { 
-    fontSize: 14, 
-    color: colors.textSecondary, 
-    textAlign: 'center', 
-    marginBottom: spacing.xl, 
-    paddingHorizontal: spacing.xl 
-  },
-  downloadOption: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.xl, 
-    gap: spacing.md, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#f0f0f0', 
-    marginHorizontal: spacing.md 
-  },
-  downloadIconBox: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 28, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-  downloadOptionContent: { 
-    flex: 1 
-  },
-  downloadOptionTitle: { 
-    fontSize: 16, 
-    fontWeight: '800', 
-    color: '#1a1a2e', 
-    marginBottom: 2 
-  },
-  downloadOptionDesc: { 
-    fontSize: 12, 
-    color: colors.textSecondary, 
-    fontWeight: '500' 
-  },
-  downloadCancelButton: { 
-    backgroundColor: '#f5f5f5', 
-    marginHorizontal: spacing.xl, 
-    marginTop: spacing.lg, 
-    paddingVertical: spacing.md, 
-    borderRadius: 12, 
-    alignItems: 'center' 
-  },
-  downloadCancelText: { 
-    color: colors.textSecondary, 
-    fontSize: 16, 
-    fontWeight: '800' 
   },
 });
 

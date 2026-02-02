@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,10 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import FeesService from '../services/feesService';
 import { useNavigation } from '../context/NavigationContext';
-import { StudentService } from '../services';
-import API_CONFIG from '../config/api';
+// Vector Icons
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,7 +19,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Feather from 'react-native-vector-icons/Feather';
 
-// Enhanced Icon component with more icon libraries
+// Icon component with proper vector icons
 const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
   const IconComponent = {
     MaterialIcons,
@@ -48,31 +47,34 @@ const FeesScreen = () => {
   const loadFeesData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading fees data from backend...');
-      console.log('🌐 Fees API:', `${API_CONFIG.BASE_URL}/fees`);
+      console.log('Loading fees data from backend...');
       
-      // Try authenticated endpoint first
-      try {
-        const response = await StudentService.getFees();
-        if (response.status === 'success' && response.data) {
-          console.log('✅ Got fees data (authenticated):', response.data.fees?.length || 0, 'records');
-          setFeesData(response.data.fees || []);
-          return;
-        }
-      } catch (authError) {
-        console.log('⚠️ Authenticated fees request failed, trying fallback');
+      // Use FeesService for backend integration
+      const result = await FeesService.getFees();
+      
+      console.log('FeesService result:', {
+        success: result.success,
+        dataLength: result.data?.length || 0,
+        source: result.source,
+        message: result.message
+      });
+      
+      if (result.success && result.data && result.data.length > 0) {
+        console.log('Data loaded successfully - Got', result.data.length, 'fees records');
+
+        console.log('� All mfee records:', result.data);
+        
+
+        setFeesData(result.data);
+        console.log('Data integrated successfully from source:', result.source);
+      } else {
+        console.log('No data available');
+        setFeesData([]);
       }
       
-      // Fallback to mock data if API fails
-      console.log('🔄 Using mock data as fallback...');
-      const mockData = getMockFeesData();
-      setFeesData([mockData]);
-      
     } catch (error) {
-      console.error('❌ Failed to load fees:', error);
-      // Fallback to mock data if API fails
-      const mockData = getMockFeesData();
-      setFeesData([mockData]);
+      console.error('Failed to load fees data:', error);
+      setFeesData([]);
     } finally {
       setLoading(false);
     }
@@ -84,15 +86,6 @@ const FeesScreen = () => {
     setRefreshing(false);
   };
 
-  const handleDownloadReceipt = async (receiptNo) => {
-    try {
-      Alert.alert('Download Receipt', `Receipt ${receiptNo} downloaded successfully!`);
-    } catch (error) {
-      console.error('Failed to download receipt:', error);
-      Alert.alert('Download Failed', 'Failed to download receipt. Please try again.');
-    }
-  };
-
   // Calculate totals from fees data
   const calculateTotals = () => {
     if (!feesData || feesData.length === 0) {
@@ -100,14 +93,13 @@ const FeesScreen = () => {
     }
 
     const totals = feesData.reduce((acc, fee) => {
-      const feeTotal = fee.amount + (fee.lateFee?.amount || 0) - (fee.discount?.amount || 0);
-      acc.totalAmount += feeTotal;
-      acc.paidAmount += fee.totalPaidAmount || 0;
+      const amount = parseFloat(fee.amount || 0);
+      const paidAmount = parseFloat(fee.paidAmount || 0);
+      const pendingAmount = parseFloat(fee.pendingAmount || (amount - paidAmount));
       
-      const remaining = feeTotal - (fee.totalPaidAmount || 0);
-      if (remaining > 0) {
-        acc.pendingAmount += remaining;
-      }
+      acc.totalAmount += amount;
+      acc.paidAmount += paidAmount;
+      acc.pendingAmount += Math.max(0, pendingAmount); // Ensure no negative pending
       
       return acc;
     }, { totalAmount: 0, paidAmount: 0, pendingAmount: 0 });
@@ -137,58 +129,6 @@ const FeesScreen = () => {
       default: return '#666';
     }
   };
-
-  // Get payment method icon
-  const getPaymentMethodIcon = (method) => {
-    switch (method?.toLowerCase()) {
-      case 'upi': return { name: 'account-balance-wallet', type: 'MaterialIcons' };
-      case 'cash': return { name: 'money', type: 'FontAwesome5' };
-      case 'card': return { name: 'credit-card', type: 'FontAwesome5' };
-      case 'bank transfer': return { name: 'bank', type: 'FontAwesome5' };
-      case 'cheque': return { name: 'receipt', type: 'MaterialIcons' };
-      default: return { name: 'payment', type: 'MaterialIcons' };
-    }
-  };
-
-  // Enhanced mock fees data matching backend structure
-  const getMockFeesData = () => ({
-    _id: '507f1f77bcf86cd799439011',
-    feeId: 'FEE17406837123ABC',
-    studentName: 'Adarsh Kumar',
-    course: 'Advanced',
-    feeType: 'Monthly Fee',
-    amount: 5000,
-    dueDate: '2025-02-15T00:00:00.000Z',
-    paidDate: '2025-01-20T00:00:00.000Z',
-    status: 'Paid',
-    paymentMethod: 'UPI',
-    transactionId: 'TXN123456789',
-    receiptNumber: 'RCP1740683712',
-    discount: {
-      amount: 500,
-      reason: 'Early payment discount'
-    },
-    lateFee: {
-      amount: 0,
-      appliedDate: null
-    },
-    notes: 'Monthly training fee for Advanced Taekwon-Do program',
-    paymentHistory: [
-      {
-        amount: 4500,
-        paymentMethod: 'UPI',
-        transactionId: 'TXN123456789',
-        paidDate: '2025-01-20T00:00:00.000Z',
-        lateFee: { amount: 0 },
-        discount: { amount: 500, reason: 'Early payment discount' },
-        notes: 'Full payment with early discount',
-        recordedAt: '2025-01-20T00:00:00.000Z'
-      }
-    ],
-    totalPaidAmount: 4500,
-    createdAt: '2025-01-15T00:00:00.000Z',
-    updatedAt: '2025-01-20T00:00:00.000Z'
-  });
 
   const handleBackPress = () => {
     navigate('Dashboard');
@@ -245,7 +185,7 @@ const FeesScreen = () => {
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Icon name="currency-rupee" size={20} color="#666" type="MaterialIcons" />
+            <Icon name="attach-money" size={20} color="#666" type="MaterialIcons" />
             <Text style={styles.statValue}>₹{totals.totalAmount.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Total Fees</Text>
           </View>
@@ -267,14 +207,14 @@ const FeesScreen = () => {
             <View key={fee._id || index} style={styles.feeCard}>
               <View style={styles.feeHeader}>
                 <View style={styles.feeHeaderLeft}>
-                  <Text style={styles.feeTitle}>{fee.feeType}</Text>
+                  <Text style={styles.feeTitle}>{fee.course}</Text>
                   <Text style={styles.feeId}>ID: {fee.feeId}</Text>
                 </View>
                 <View style={[styles.statusBadge, { 
                   backgroundColor: getStatusColor(fee.status)
                 }]}>
                   <Icon 
-                    name={fee.status === 'Paid' ? 'check' : fee.status === 'Pending' ? 'schedule' : 'warning'} 
+                    name={fee.status === 'Paid' ? 'check' : fee.status === 'Pending' ? 'schedule' : fee.status === 'Overdue' ? 'warning' : 'info'} 
                     size={14} 
                     color="#fff" 
                     type="MaterialIcons"
@@ -283,39 +223,37 @@ const FeesScreen = () => {
                 </View>
               </View>
 
-              {/* Fee Details */}
+              {/* Essential Fee Details - Simplified */}
               <View style={styles.feeDetailsSection}>
                 <View style={styles.feeRow}>
                   <Icon name="person" size={16} color="#666" type="MaterialIcons" />
-                  <Text style={styles.feeLabel}>Student:</Text>
+                  <Text style={styles.feeLabel}>Student Name:</Text>
                   <Text style={styles.feeValue}>{fee.studentName}</Text>
                 </View>
                 
                 <View style={styles.feeRow}>
-                  <Icon name="school" size={16} color="#666" type="MaterialIcons" />
-                  <Text style={styles.feeLabel}>Course:</Text>
-                  <Text style={styles.feeValue}>{fee.course}</Text>
+                  <Icon name="badge" size={16} color="#666" type="MaterialIcons" />
+                  <Text style={styles.feeLabel}>ID:</Text>
+                  <Text style={styles.feeValue}>{fee.feeId}</Text>
                 </View>
                 
                 <View style={styles.feeRow}>
-                  <Icon name="currency-rupee" size={16} color="#666" type="MaterialIcons" />
-                  <Text style={styles.feeLabel}>Amount:</Text>
-                  <Text style={styles.feeValue}>₹{fee.amount.toLocaleString()}</Text>
+                  <Icon name="attach-money" size={16} color="#666" type="MaterialIcons" />
+                  <Text style={styles.feeLabel}>Total Fees:</Text>
+                  <Text style={styles.feeValue}>₹{parseFloat(fee.amount || 0).toLocaleString()}</Text>
+                </View>
+                
+                <View style={styles.feeRow}>
+                  <Icon name="account-balance-wallet" size={16} color="#4CAF50" type="MaterialIcons" />
+                  <Text style={styles.feeLabel}>Paid:</Text>
+                  <Text style={[styles.feeValue, { color: '#4CAF50' }]}>₹{parseFloat(fee.paidAmount || 0).toLocaleString()}</Text>
                 </View>
 
-                {fee.discount && fee.discount.amount > 0 && (
+                {fee.pendingAmount > 0 && (
                   <View style={styles.feeRow}>
-                    <Icon name="local-offer" size={16} color="#4CAF50" type="MaterialIcons" />
-                    <Text style={styles.feeLabel}>Discount:</Text>
-                    <Text style={[styles.feeValue, { color: '#4CAF50' }]}>-₹{fee.discount.amount.toLocaleString()}</Text>
-                  </View>
-                )}
-
-                {fee.lateFee && fee.lateFee.amount > 0 && (
-                  <View style={styles.feeRow}>
-                    <Icon name="warning" size={16} color="#F44336" type="MaterialIcons" />
-                    <Text style={styles.feeLabel}>Late Fee:</Text>
-                    <Text style={[styles.feeValue, { color: '#F44336' }]}>+₹{fee.lateFee.amount.toLocaleString()}</Text>
+                    <Icon name="pending" size={16} color="#F44336" type="MaterialIcons" />
+                    <Text style={styles.feeLabel}>Pending:</Text>
+                    <Text style={[styles.feeValue, { color: '#F44336' }]}>₹{parseFloat(fee.pendingAmount || 0).toLocaleString()}</Text>
                   </View>
                 )}
                 
@@ -332,81 +270,18 @@ const FeesScreen = () => {
                     <Text style={[styles.feeValue, { color: '#4CAF50' }]}>{formatDate(fee.paidDate)}</Text>
                   </View>
                 )}
-
-                <View style={styles.feeRow}>
-                  <Icon name="account-balance-wallet" size={16} color="#666" type="MaterialIcons" />
-                  <Text style={styles.feeLabel}>Paid Amount:</Text>
-                  <Text style={[styles.feeValue, { color: '#4CAF50' }]}>₹{(fee.totalPaidAmount || 0).toLocaleString()}</Text>
-                </View>
-
-                {fee.paymentMethod && (
-                  <View style={styles.feeRow}>
-                    <Icon 
-                      name={getPaymentMethodIcon(fee.paymentMethod).name} 
-                      size={16} 
-                      color="#666" 
-                      type={getPaymentMethodIcon(fee.paymentMethod).type}
-                    />
-                    <Text style={styles.feeLabel}>Payment Method:</Text>
-                    <Text style={styles.feeValue}>{fee.paymentMethod}</Text>
-                  </View>
-                )}
-
-                {fee.transactionId && (
-                  <View style={styles.feeRow}>
-                    <Icon name="receipt" size={16} color="#666" type="MaterialIcons" />
-                    <Text style={styles.feeLabel}>Transaction ID:</Text>
-                    <Text style={styles.feeValue}>{fee.transactionId}</Text>
-                  </View>
-                )}
               </View>
-
-              {/* Payment History */}
-              {fee.paymentHistory && fee.paymentHistory.length > 0 && (
-                <View style={styles.paymentHistorySection}>
-                  <Text style={styles.sectionTitle}>Payment History</Text>
-                  {fee.paymentHistory.map((payment, paymentIndex) => (
-                    <View key={paymentIndex} style={styles.paymentCard}>
-                      <View style={styles.paymentHeader}>
-                        <Text style={styles.paymentAmount}>₹{payment.amount.toLocaleString()}</Text>
-                        <Text style={styles.paymentDate}>{formatDate(payment.paidDate)}</Text>
-                      </View>
-                      <View style={styles.paymentDetails}>
-                        <Text style={styles.paymentMethod}>{payment.paymentMethod}</Text>
-                        {payment.transactionId && (
-                          <Text style={styles.paymentTransaction}>ID: {payment.transactionId}</Text>
-                        )}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Receipt Download Button */}
-              {fee.receiptNumber && (
-                <TouchableOpacity 
-                  style={styles.receiptButton}
-                  onPress={() => handleDownloadReceipt(fee.receiptNumber)}
-                >
-                  <Icon name="file-download" size={16} color="#fff" type="MaterialIcons" />
-                  <Text style={styles.receiptButtonText}>Download Receipt</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Notes */}
-              {fee.notes && (
-                <View style={styles.notesSection}>
-                  <Icon name="note" size={16} color="#666" type="MaterialIcons" />
-                  <Text style={styles.notesText}>{fee.notes}</Text>
-                </View>
-              )}
             </View>
           ))
         ) : (
           <View style={styles.emptyState}>
             <Icon name="receipt-long" size={64} color="#ccc" type="MaterialIcons" />
             <Text style={styles.emptyStateTitle}>No Fee Records</Text>
-            <Text style={styles.emptyStateText}>No fee records found for your account.</Text>
+            <Text style={styles.emptyStateText}>No fees data available at the moment</Text>
+            <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
+              <Icon name="refresh" size={16} color="#fff" type="MaterialIcons" />
+              <Text style={styles.retryButtonText}>Refresh</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -674,6 +549,21 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 
   // Loading States

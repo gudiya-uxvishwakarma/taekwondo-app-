@@ -9,12 +9,12 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
-  Animated,
 } from 'react-native';
+import StudentService from '../services/studentService';
+import API_CONFIG from '../config/api';
 import { useStudent } from '../context/StudentContext';
 import { useNavigation } from '../context/NavigationContext';
-import { StudentService } from '../services';
-import API_CONFIG from '../config/api';
+// Vector Icons
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -22,7 +22,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Feather from 'react-native-vector-icons/Feather';
 
-// Enhanced Icon component with more icon libraries
+// Icon component with proper vector icons
 const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
   const IconComponent = {
     MaterialIcons,
@@ -39,7 +39,7 @@ const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
 const { width } = Dimensions.get('window');
 
 const AttendanceScreen = () => {
-  const { student, isAuthenticated } = useStudent();
+  const { isAuthenticated } = useStudent();
   const { navigate } = useNavigation();
   const [viewMode, setViewMode] = useState('Yearly'); // 'Yearly' or 'Monthly'
   const [selectedYear, setSelectedYear] = useState(2024);
@@ -57,6 +57,18 @@ const AttendanceScreen = () => {
     loadAttendanceData();
   }, [selectedYear, selectedMonth, viewMode, isAuthenticated]);
 
+  // Helper function to get month index
+  const getMonthIndex = (monthName) => {
+    if (monthName === 'All Months') return null;
+    const monthMap = {
+      'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
+      'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11,
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    return monthMap[monthName] || 0;
+  };
+
   const loadAttendanceData = async () => {
     try {
       setLoading(true);
@@ -69,8 +81,8 @@ const AttendanceScreen = () => {
       }
       
       console.log('🔄 Loading attendance data from backend...');
-      console.log('🌐 Students API:', `${API_CONFIG.BASE_URL}/students`);
-      console.log('🌐 Attendance API:', `${API_CONFIG.BASE_URL}/attendance`);
+      console.log('🌐 Students API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STUDENT.LIST}`);
+      console.log('🌐 Attendance API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ATTENDANCE.LIST}`);
       
       // First, get the student record for the current user
       let studentRecord = null;
@@ -127,15 +139,6 @@ const AttendanceScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper function to get month index
-  const getMonthIndex = (monthName) => {
-    const monthMap = {
-      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-    };
-    return monthMap[monthName] || 0;
   };
 
   // Process backend attendance data
