@@ -13,18 +13,15 @@ const config = {
   resolver: {
     alias: {
       crypto: 'react-native-crypto-js',
-      stream: 'stream-browserify',
-      buffer: '@craftzdog/react-native-buffer',
     },
-    assetExts: ['bin', 'txt', 'jpg', 'png', 'json', 'ttf', 'otf', 'woff', 'woff2'],
   },
   transformer: {
-    getTransformOptions: async () => ({
-      transform: {
-        experimentalImportSupport: false,
-        inlineRequires: true,
+    minifierConfig: {
+      keep_fnames: true,
+      mangle: {
+        keep_fnames: true,
       },
-    }),
+    },
   },
 };
 

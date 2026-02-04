@@ -1,9 +1,9 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 def jscFlavor = 'org.webkit:android-jsc:+'
-def enableHermes = false
+def enableHermes = true
 
 android {
     namespace "com.reactnative"
@@ -23,25 +23,44 @@ android {
         applicationId "com.reactnative"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
         
         manifestPlaceholders = [
             usesCleartextTraffic: "true"
         ]
 
         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "false"
-        buildConfigField "boolean", "IS_HERMES_ENABLED", "false"
+        buildConfigField "boolean", "IS_HERMES_ENABLED", "true"
+        
+        // Enable multidex to fix DEX merging issues
+        multiDexEnabled true
     }
 
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
         }
         release {
             signingConfig signingConfigs.debug
+            debuggable false
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            
+            // Disable crashes in release
+            crunchPngs false
+            
+            // Enable separate APKs for different architectures
+            splits {
+                abi {
+                    reset()
+                    enable false
+                }
+            }
         }
     }
 
@@ -57,11 +76,18 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.9.0")
     
+    // Multidex support
+    implementation("androidx.multidex:multidex:2.0.1")
+    
     // React Native dependencies
     implementation("com.facebook.react:react-android:0.72.6")
     implementation("com.facebook.soloader:soloader:0.10.5")
     
-    implementation jscFlavor
+    if (enableHermes) {
+        implementation("com.facebook.react:hermes-android:0.72.6")
+    } else {
+        implementation jscFlavor
+    }
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

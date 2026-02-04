@@ -1,17 +1,36 @@
 
 import React from 'react';
 import {
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   View,
   ActivityIndicator,
   Text,
+  LogBox,
 } from 'react-native';
 import { StudentProvider, useStudent } from './src/context/StudentContext';
 import StudentLoginScreen from './src/screens/auth/StudentLoginScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 import { colors, typography, spacing } from './src/theme';
+
+// Ignore specific warnings that might cause issues
+if (__DEV__) {
+  LogBox.ignoreLogs([
+    'Warning: componentWillReceiveProps',
+    'Warning: componentWillMount',
+    'Module RCTImageLoader',
+    'Require cycle:',
+    'VirtualizedLists should never be nested',
+    'Setting a timer for a long period of time',
+    'Remote debugger is in a background tab',
+  ]);
+} else {
+  // Disable all console logs in production
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
 
 const AppContent = () => {
   const { isAuthenticated, loading } = useStudent();
@@ -38,17 +57,19 @@ const AppContent = () => {
 
 function App() {
   return (
-    <StudentProvider>
-      <View style={styles.container}>
-        <StatusBar 
-          barStyle="light-content" 
-          backgroundColor="#e74c3c" 
-          translucent={false}
-          hidden={false}
-        />
-        <AppContent />
-      </View>
-    </StudentProvider>
+    <ErrorBoundary>
+      <StudentProvider>
+        <View style={styles.container}>
+          <StatusBar 
+            barStyle="light-content" 
+            backgroundColor={colors.primary} 
+            translucent={false}
+            hidden={false}
+          />
+          <AppContent />
+        </View>
+      </StudentProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -2,16 +2,59 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { colors } from '../theme';
 import { NavigationProvider, useNavigation } from '../context/NavigationContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Icon from '../components/common/Icon';
 
-// Import screens
-import DashboardScreen from '../screens/DashboardScreen';
-import AttendanceScreen from '../screens/AttendanceScreen';
-import FeesScreen from '../screens/FeesScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import LevelStatusScreen from '../screens/LevelStatusScreen';
-import EventsScreen from '../screens/EventsScreen';
-import CertificateCardScreen from '../screens/CertificateCardScreen';
+// Import screens with error handling
+let DashboardScreen, AttendanceScreen, FeesScreen, ProfileScreen, LevelStatusScreen, EventsScreen, CertificateCardScreen;
+
+try {
+  DashboardScreen = require('../screens/DashboardScreen').default;
+} catch (e) {
+  console.warn('DashboardScreen not found:', e);
+  DashboardScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Dashboard Screen Loading...</Text></View>;
+}
+
+try {
+  AttendanceScreen = require('../screens/AttendanceScreen').default;
+} catch (e) {
+  console.warn('AttendanceScreen not found:', e);
+  AttendanceScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Attendance Screen Loading...</Text></View>;
+}
+
+try {
+  FeesScreen = require('../screens/FeesScreen').default;
+} catch (e) {
+  console.warn('FeesScreen not found:', e);
+  FeesScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Fees Screen Loading...</Text></View>;
+}
+
+try {
+  ProfileScreen = require('../screens/ProfileScreen').default;
+} catch (e) {
+  console.warn('ProfileScreen not found:', e);
+  ProfileScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Profile Screen Loading...</Text></View>;
+}
+
+try {
+  LevelStatusScreen = require('../screens/LevelStatusScreen').default;
+} catch (e) {
+  console.warn('LevelStatusScreen not found:', e);
+  LevelStatusScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Level Status Screen Loading...</Text></View>;
+}
+
+try {
+  EventsScreen = require('../screens/EventsScreen').default;
+} catch (e) {
+  console.warn('EventsScreen not found:', e);
+  EventsScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Events Screen Loading...</Text></View>;
+}
+
+try {
+  CertificateCardScreen = require('../screens/CertificateCardScreen').default;
+} catch (e) {
+  console.warn('CertificateCardScreen not found:', e);
+  CertificateCardScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Certificate Screen Loading...</Text></View>;
+}
 
 
 
@@ -48,7 +91,7 @@ const TabIcon = ({ name, focused }) => {
       styles.roundedIconContainer,
       focused && styles.activeIconContainer
     ]}>
-      <MaterialIcons name={iconName} size={iconSize} color={iconColor} />
+      <Icon name={iconName} size={iconSize} color={iconColor} type="MaterialIcons" />
     </View>
   );
 };

@@ -11,27 +11,7 @@ import {
 } from 'react-native';
 import FeesService from '../services/feesService';
 import { useNavigation } from '../context/NavigationContext';
-// Vector Icons
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-import Feather from 'react-native-vector-icons/Feather';
-
-// Icon component with proper vector icons
-const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
-  const IconComponent = {
-    MaterialIcons,
-    MaterialCommunityIcons,
-    Ionicons,
-    FontAwesome5,
-    AntDesign,
-    Feather,
-  }[type];
-
-  return <IconComponent name={name} size={size} color={color} />;
-};
+import Icon from '../components/common/Icon';
 
 const FeesScreen = () => {
   const { navigate } = useNavigation();

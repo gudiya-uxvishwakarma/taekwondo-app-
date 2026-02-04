@@ -13,17 +13,7 @@ import {
 import StudentService from '../services/studentService';
 import API_CONFIG from '../config/api';
 import { useNavigation } from '../context/NavigationContext';
-// Vector Icons
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
-// Icon component with proper vector icons
-const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
-  const IconComponent = {
-    MaterialIcons,
-  }[type];
-
-  return <IconComponent name={name} size={size} color={color} />;
-};
+import Icon from '../components/common/Icon';
 
 const LevelStatusScreen = () => {
   const { navigate } = useNavigation();

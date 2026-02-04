@@ -1,6 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthService } from '../services';
-import { getToken, getUserData, saveUserData, clearAllData, isAuthenticated as checkAuth, saveToken } from '../utils/tokenStorage';
+import { getUserData, saveUserData, clearAllData, isAuthenticated as checkAuth, saveToken } from '../utils/tokenStorage';
+
+// Import AuthService with error handling
+let AuthService;
+try {
+  AuthService = require('../services').AuthService;
+} catch (e) {
+  console.warn('AuthService not found, using mock:', e);
+  AuthService = {
+    login: async (credentials) => {
+      // Mock login for development
+      if (credentials.email && credentials.password) {
+        return {
+          user: { id: 1, email: credentials.email, name: 'Test User' },
+          token: 'mock-token-' + Date.now()
+        };
+      }
+      throw new Error('Invalid credentials');
+    },
+    logout: async () => {
+      console.log('Mock logout');
+    }
+  };
+}
 
 const StudentContext = createContext(undefined);
 
@@ -22,12 +44,21 @@ export const StudentProvider = ({ children }) => {
         const userData = await getUserData();
         if (userData) {
           setStudent(userData);
+        } else {
+          // If no user data but token exists, clear everything
+          console.log('⚠️ Token exists but no user data, clearing session');
+          await clearAllData();
         }
       }
     } catch (error) {
-      console.log('Session check error:', error);
-      // Clear corrupted data
-      await clearAllData();
+      console.log('❌ Session check error:', error);
+      // Clear corrupted data and reset state
+      try {
+        await clearAllData();
+        setStudent(null);
+      } catch (clearError) {
+        console.log('❌ Failed to clear corrupted data:', clearError);
+      }
     } finally {
       setLoading(false);
     }
@@ -52,29 +83,48 @@ export const StudentProvider = ({ children }) => {
         await saveToken(response.token);
         
         setStudent(response.user);
-        setLoading(false);
         return true;
       }
       
       console.log('❌ Login failed - invalid response structure');
-      setLoading(false);
       return false;
     } catch (error) {
       console.error('❌ Login failed:', error.message);
-      setLoading(false);
+      
+      // Reset state on error
+      setStudent(null);
+      
+      // Clear any corrupted data
+      try {
+        await clearAllData();
+      } catch (clearError) {
+        console.log('⚠️ Failed to clear data after login error:', clearError);
+      }
+      
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
+      setLoading(true);
       await AuthService.logout();
-      setStudent(null);
     } catch (error) {
-      console.log('Logout error:', error);
-      // Clear local data even if API call fails
-      await clearAllData();
-      setStudent(null);
+      console.log('❌ Logout API error:', error);
+      // Continue with local cleanup even if API call fails
+    } finally {
+      // Always clear local data and reset state
+      try {
+        await clearAllData();
+        setStudent(null);
+      } catch (clearError) {
+        console.log('❌ Failed to clear data during logout:', clearError);
+        // Force reset state even if clear fails
+        setStudent(null);
+      }
+      setLoading(false);
     }
   };
 

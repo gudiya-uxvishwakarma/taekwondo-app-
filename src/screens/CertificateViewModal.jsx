@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
-import Logo from '../components/common/Logo';
+// import Logo from '../components/common/Logo';
 import CertificatePDFService from '../services/CertificatePDFService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -120,7 +120,7 @@ const CertificateViewModal = ({ visible, certificate, onClose, testID }) => {
                 <View style={styles.cornerDecoration} />
               </View>
 
-              {/* Header with Logo Integration */}
+              Header with Logo Integration
               <View style={styles.headerSection}>
                 <Logo size="medium" showText={false} />
                 <Text style={styles.organizationName}>TAEKWON-DO ASSOCIATION OF KARNATAKA</Text>

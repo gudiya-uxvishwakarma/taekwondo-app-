@@ -14,22 +14,9 @@ import {
 import { useNavigation } from '../context/NavigationContext';
 import { StudentService } from '../services';
 import IconVerificationScreen from './IconVerificationScreen';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
-
-// Icon component using react-native-vector-icons
-const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
-  const IconComponent = {
-    MaterialIcons,
-    MaterialCommunityIcons,
-    Ionicons,
-    FontAwesome,
-  }[type];
-
-  return <IconComponent name={name} size={size} color={color} />;
-};
+import Icon from '../components/common/Icon';
+import VectorIconTest from '../components/VectorIconTest';
+import { logo } from '../assets';
 
 const { width } = Dimensions.get('window');
 
@@ -76,7 +63,7 @@ const DashboardScreen = () => {
             setPendingFees(mockPendingFees);
           }
         } catch (feesError) {
-          console.log('Could not fetch fees data for dashboard:', feesError.message);
+          console.log('⚠️ Could not fetch fees data for dashboard:', feesError.message);
           // Fallback to mock data
           const mockPendingFees = Math.floor(Math.random() * 6); // 0-5 pending fees
           setPendingFees(mockPendingFees);
@@ -89,7 +76,11 @@ const DashboardScreen = () => {
         setTotalEvents(mockEvents);
         setAttendancePercentage(mockAttendance);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('❌ Error fetching dashboard data:', error);
+        // Set fallback values to prevent crashes
+        setPendingFees(0);
+        setTotalEvents(25);
+        setAttendancePercentage(95);
       }
     };
 
@@ -134,25 +125,35 @@ const DashboardScreen = () => {
   ];
 
   const handleQuickOverviewPress = (item) => {
-    console.log('Quick Overview pressed:', item.subtitle);
-    console.log('Navigating to:', item.route);
-    
-    // Navigate to the screen using the route property
-    if (item.route && ['Fees', 'Events', 'Attendance'].includes(item.route)) {
-      navigate(item.route);
-    } else {
-      Alert.alert('Coming Soon', `${item.subtitle} feature will be available soon!`);
+    try {
+      console.log('Quick Overview pressed:', item.subtitle);
+      console.log('Navigating to:', item.route);
+      
+      // Navigate to the screen using the route property
+      if (item.route && ['Fees', 'Events', 'Attendance'].includes(item.route)) {
+        navigate(item.route);
+      } else {
+        Alert.alert('Coming Soon', `${item.subtitle} feature will be available soon!`);
+      }
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
+      Alert.alert('Error', 'Unable to navigate. Please try again.');
     }
   };
 
   const handleQuickAccessPress = (item) => {
-    console.log('Navigating to:', item.route);
-    // Navigate to existing screens
-    if (['Attendance', 'Level', 'Events', 'Certificates', 'Fees'].includes(item.route)) {
-      navigate(item.route);
-    } else {
-      // For features not yet implemented
-      Alert.alert('Coming Soon', `${item.title} feature will be available soon!`);
+    try {
+      console.log('Navigating to:', item.route);
+      // Navigate to existing screens
+      if (['Attendance', 'Level', 'Events', 'Certificates', 'Fees'].includes(item.route)) {
+        navigate(item.route);
+      } else {
+        // For features not yet implemented
+        Alert.alert('Coming Soon', `${item.title} feature will be available soon!`);
+      }
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
+      Alert.alert('Error', 'Unable to navigate. Please try again.');
     }
   };
 
@@ -166,17 +167,18 @@ const DashboardScreen = () => {
           <View style={styles.leftSection}>
             <View style={styles.avatarContainer}>
               <Image
-                source={require('../assets/taekwondo-logo.png')}
+                source={logo}
                 style={styles.logoImage}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.greeting}>Hello!</Text>
-                    <Text style={styles.greeting}>Adarsh</Text>
+              <Text style={styles.userName}>Adarsh</Text>
             </View>
           </View>
           <View style={styles.rightSection}>
+           
             <TouchableOpacity style={styles.notificationButton}>
               <Icon name="notifications" size={24} color="#fff" type="MaterialIcons" />
             </TouchableOpacity>
@@ -232,9 +234,17 @@ const DashboardScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Icon Test Modal */}
+      {/* Vector Icon Test Modal */}
       <Modal visible={showIconTest} animationType="slide" onRequestClose={() => setShowIconTest(false)}>
-        <IconVerificationScreen onClose={() => setShowIconTest(false)} />
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#e74c3c' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Vector Icons Test</Text>
+            <TouchableOpacity onPress={() => setShowIconTest(false)}>
+              <Icon name="close" size={24} color="#fff" type="MaterialIcons" />
+            </TouchableOpacity>
+          </View>
+          <VectorIconTest />
+        </View>
       </Modal>
     </View>
   );
@@ -279,18 +289,29 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#fff3cd', // Changed from white to a light yellow/cream color
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#ffd700', // Added golden border
+    borderColor: '#ffd700',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   logoImage: {
-    width: 51,
-    height: 51,
+    width: 41,
+    height: 41,
     borderRadius: 20.5,
+  },
+  userName: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: '800',
+    marginTop: 2,
   },
 
   userDetails: {

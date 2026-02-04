@@ -13,22 +13,7 @@ import {
 import { useNavigation } from '../../context/NavigationContext';
 import { useStudent } from '../../context/StudentContext';
 import { colors } from '../../theme';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
-
-// Icon component using react-native-vector-icons
-const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
-  const IconComponent = {
-    MaterialIcons,
-    MaterialCommunityIcons,
-    Ionicons,
-    FontAwesome,
-  }[type];
-
-  return <IconComponent name={name} size={size} color={color} />;
-};
+import Icon from './Icon';
 
 
 
@@ -113,7 +98,7 @@ const Navbar = () => {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../assets/taekwondo-logo.png')}
+            source={require('../../assets/taekwondo-logo.jpg')}
             style={styles.logoImage}
             resizeMode="cover"
           />
@@ -164,7 +149,7 @@ const Navbar = () => {
                 <View style={styles.logoSection}>
                   <View style={styles.menuLogoContainer}>
                     <Image
-                      source={require('../../assets/taekwondo-logo.png')}
+                      source={require('../../assets/taekwondo-logo.jpg')}
                       style={styles.menuLogoImage}
                       resizeMode="contain"
                     />

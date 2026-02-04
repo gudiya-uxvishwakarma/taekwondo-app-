@@ -14,16 +14,15 @@ import {
   TextInput,
   StatusBar,
   SafeAreaView,
-  Image,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { useStudent } from '../../context/StudentContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Icon from '../../components/common/Icon';
+import { logo } from '../../assets'; 
 
-// Icon component using react-native-vector-icons
-const Icon = ({ name, size = 24, color = '#000' }) => {
-  return <MaterialIcons name={name} size={size} color={color} />;
-};
+// Updated: Using Logo component properly - displays logo.png from assets
+// Last updated: 2026-02-04 - Logo improvements
 
 const StudentLoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -42,7 +41,7 @@ const StudentLoginScreen = () => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const logoScale = useRef(new Animated.Value(0.9)).current;
+  const logoScale = useRef(new Animated.Value(0.9)).current; 
 
   // Component mount and animations
   useEffect(() => {
@@ -155,9 +154,10 @@ const StudentLoginScreen = () => {
           >
             <View style={styles.logoContainer}>
               <Image
-                source={require('../../assets/taekwondo-logo.png')}
+                source={logo}
                 style={styles.logoImage}
-                resizeMode="cover"
+                resizeMode="contain"
+                testID="login-logo"
               />
             </View>
             <Text style={styles.welcomeEmoji}>👋</Text>
@@ -180,7 +180,7 @@ const StudentLoginScreen = () => {
             >
             <View style={styles.formHeader}>
               <View style={styles.formLogoContainer}>
-                <Text style={styles.formIcon}>🔑</Text>
+                <Icon name="person" size={24} color="#ef4444" type="MaterialIcons" />
               </View>
               <Text style={styles.formTitle}>Student Login</Text>
               <Text style={styles.formSubtitle}>
@@ -365,34 +365,32 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginBottom: 12,
-    shadowColor: '#580303ff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 3,
+    marginBottom: 15,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 10,
+    borderWidth: 4,
     borderColor: '#ffffff',
   },
   logoImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 2,
-    borderColor: 'rgba(239, 68, 68, 0.1)',
+    width: 85,
+    height: 85,
+    borderRadius: 42,
   },
   welcomeEmoji: {
     fontSize: 32,
     marginBottom: 8,
   },
   welcomeTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: '#1f2937',
     textAlign: 'center',
@@ -425,7 +423,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fef2f2',
     marginBottom: 12,
     shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 2 },
@@ -434,13 +432,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 2,
     borderColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  formIcon: {
-    fontSize: 24,
-  },
-  formEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
   },
   formTitle: {
     fontSize: 20,

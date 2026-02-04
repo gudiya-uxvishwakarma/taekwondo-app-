@@ -14,23 +14,7 @@ import {
 import StudentService from '../services/studentService';
 import API_CONFIG from '../config/api';
 import { useNavigation } from '../context/NavigationContext';
-// Vector Icons
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
-
-// Icon component with proper vector icons
-const Icon = ({ name, size = 24, color = '#000', type = 'MaterialIcons' }) => {
-  const IconComponent = {
-    MaterialIcons,
-    MaterialCommunityIcons,
-    Ionicons,
-    FontAwesome,
-  }[type];
-
-  return <IconComponent name={name} size={size} color={color} />;
-};
+import Icon from '../components/common/Icon';
 
 const EventsScreen = () => {
   const { navigate } = useNavigation();
