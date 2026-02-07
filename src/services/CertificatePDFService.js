@@ -31,7 +31,7 @@ try {
 
 class CertificatePDFService {
   /**
-   * Generate certificate HTML content with exact styling matching the view
+   * Generate certificate HTML content with EXACT styling matching the view
    */
   static generateCertificateHTML(certificate) {
     const getBeltColor = (title) => {
@@ -69,7 +69,7 @@ class CertificatePDFService {
     const beltColor = getBeltColor(certificate.title);
     const formattedDate = formatDate(certificate.issueDate);
 
-    // Generate HTML that matches the exact certificate design from the view
+    // Generate HTML that EXACTLY matches the certificate view design
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,240 +86,298 @@ class CertificatePDFService {
         body {
             font-family: 'Times New Roman', serif;
             background: #f5f5f5;
-            padding: 20px;
+            padding: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
         }
         
+        /* EXACT MATCH: Certificate Container */
         .certificate-container {
-            width: 450px;
-            min-height: 600px;
+            width: 480px;
+            min-height: 700px;
             position: relative;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            align-self: center;
         }
         
-        .outer-frame {
+        /* EXACT MATCH: Outer Border */
+        .outer-border {
             width: 100%;
             height: 100%;
-            background: #DAA520;
-            border-radius: 20px;
-            padding: 8px;
-            border: 3px solid #B8860B;
+            background: #8B4513;
+            border-radius: 16px;
+            padding: 4px;
+            border: 2px solid #654321;
         }
         
-        .inner-frame {
+        /* EXACT MATCH: Certificate Background */
+        .certificate-background {
             width: 100%;
-            min-height: 580px;
+            min-height: 690px;
             background: #FFF8DC;
             border-radius: 12px;
             padding: 24px;
             position: relative;
-            border: 2px solid #DAA520;
+            border: 3px solid #DAA520;
         }
         
-        .corner-decoration {
+        /* EXACT MATCH: Decorative corners */
+        .corner {
             position: absolute;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #DAA520;
-            border-radius: 3px;
-            background: rgba(218, 165, 32, 0.2);
+            width: 24px;
+            height: 24px;
+            border-color: #DAA520;
         }
+        .corner-top-left { top: 12px; left: 12px; border-top: 3px solid; border-left: 3px solid; border-top-left-radius: 8px; }
+        .corner-top-right { top: 12px; right: 12px; border-top: 3px solid; border-right: 3px solid; border-top-right-radius: 8px; }
+        .corner-bottom-left { bottom: 12px; left: 12px; border-bottom: 3px solid; border-left: 3px solid; border-bottom-left-radius: 8px; }
+        .corner-bottom-right { bottom: 12px; right: 12px; border-bottom: 3px solid; border-right: 3px solid; border-bottom-right-radius: 8px; }
         
-        .top-left { top: 8px; left: 8px; }
-        .top-right { top: 8px; right: 8px; }
-        .bottom-left { bottom: 8px; left: 8px; }
-        .bottom-right { bottom: 8px; right: 8px; }
-        
-        .header-section {
+        /* EXACT MATCH: Header Section */
+        .certificate-header {
             text-align: center;
-            margin-top: 16px;
-            margin-bottom: 24px;
+            margin-top: 24px;
+            margin-bottom: 32px;
         }
         
+        .logo-section {
+            margin-bottom: 16px;
+        }
+        
+        /* EXACT MATCH: Logo Container */
         .logo-container {
-            width: 80px;
-            height: 80px;
-            border-radius: 40px;
-            background: #FFF8DC;
-            border: 3px solid #8B4513;
+            width: 90px;
+            height: 90px;
+            border-radius: 45px;
+            background: #FFD700;
+            border: 4px solid #8B4513;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0 auto 12px;
-            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            overflow: hidden;
         }
         
         .logo-image {
-            width: 70px;
-            height: 70px;
-            border-radius: 35px;
-            background: #FFD700;
-            border: 2px solid rgba(239, 68, 68, 0.1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
+            font-size: 48px;
             color: #8B4513;
-            font-weight: 900;
         }
         
-        .organization-name {
-            font-size: 14px;
-            font-weight: 700;
-            color: #8B4513;
-            letter-spacing: 1px;
-            text-align: center;
-        }
-        
-        .certificate-title-section {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        
-        .certificate-main-title {
-            font-size: 36px;
+        /* EXACT MATCH: Title Section */
+        .main-title {
+            font-size: 42px;
             font-weight: 900;
             color: #8B4513;
-            letter-spacing: 4px;
+            letter-spacing: 6px;
             text-align: center;
+            text-shadow: 2px 2px 4px rgba(139, 69, 19, 0.3);
+            margin-bottom: 8px;
         }
         
-        .title-underline {
-            width: 180px;
-            height: 3px;
-            background: #8B4513;
+        .title-divider {
+            width: 200px;
+            height: 4px;
+            background: #DAA520;
             margin: 8px auto;
+            border-radius: 2px;
         }
         
-        .certificate-sub-title {
-            font-size: 18px;
+        .sub-title {
+            font-size: 20px;
             font-weight: 700;
             color: #8B4513;
+            letter-spacing: 3px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        
+        .discipline {
+            font-size: 18px;
+            font-weight: 600;
+            color: #DC143C;
             letter-spacing: 2px;
             text-align: center;
         }
         
-        .certificate-discipline {
-            font-size: 16px;
-            font-weight: 600;
-            color: #DC143C;
-            letter-spacing: 1.5px;
-            text-align: center;
-            margin-top: 4px;
+        /* EXACT MATCH: Martial Arts Section */
+        .martial-arts-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 48px;
         }
         
-        .decorative-ornament {
-            text-align: center;
-            margin: 16px 0;
+        .figure {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            border: 2px solid;
         }
         
-        .ornament-text {
+        .left-figure {
+            background: rgba(220, 20, 60, 0.1);
+            border-color: #DC143C;
+        }
+        
+        .center-ornament {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: rgba(218, 165, 32, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             font-size: 24px;
             color: #DAA520;
         }
         
-        .presented-section {
-            text-align: center;
-            margin-bottom: 24px;
+        .right-figure {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
         }
         
-        .presented-text {
-            font-size: 16px;
+        /* EXACT MATCH: Student Section */
+        .student-section {
+            text-align: center;
+            margin: 32px 0;
+            padding: 24px;
+            background: rgba(255, 248, 220, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(218, 165, 32, 0.3);
+        }
+        
+        .presented-to {
+            font-size: 18px;
             font-weight: 600;
             color: #8B4513;
             font-style: italic;
-            margin-bottom: 12px;
-            font-family: serif;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
         }
         
-        .student-name {
-            font-size: 28px;
+        .student-name-large {
+            font-size: 32px;
             font-weight: 900;
             color: #2C1810;
             text-align: center;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
+            letter-spacing: 3px;
+            margin-bottom: 16px;
+            text-shadow: 1px 1px 2px rgba(44, 24, 16, 0.2);
         }
         
-        .achievement-text {
-            font-size: 14px;
+        .achievement-description {
+            font-size: 16px;
             font-weight: 600;
             color: #8B4513;
             text-align: center;
             font-style: italic;
-            line-height: 20px;
-            font-family: serif;
+            line-height: 22px;
+            padding: 0 24px;
         }
         
-        .date-section {
+        /* EXACT MATCH: Award Section */
+        .award-section {
             text-align: center;
-            margin-bottom: 24px;
+            margin: 24px 0;
         }
         
-        .awarded-text {
-            font-size: 14px;
+        .awarded-label {
+            font-size: 16px;
             font-weight: 600;
             color: #8B4513;
-            margin-bottom: 12px;
-            font-family: serif;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
         }
         
-        .date-text {
-            font-size: 20px;
+        .date-display {
+            font-size: 24px;
             font-weight: 800;
             color: #DC143C;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(220, 20, 60, 0.2);
         }
         
-        .level-rank-section {
+        /* EXACT MATCH: Belt Section */
+        .belt-section {
             text-align: center;
-            margin-bottom: 24px;
+            margin: 32px 0;
+            padding: 24px;
             background: rgba(218, 165, 32, 0.1);
-            padding: 12px 24px;
-            border-radius: 12px;
-            border: 2px solid #DAA520;
+            border-radius: 16px;
+            border: 3px solid #DAA520;
         }
         
-        .level-rank-text {
-            font-size: 16px;
+        .medal-container {
+            margin-bottom: 16px;
+        }
+        
+        .medal {
+            width: 80px;
+            height: 80px;
+            border-radius: 40px;
+            background: ${beltColor};
+            border: 4px solid #DAA520;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 32px;
+        }
+        
+        .level-text {
+            font-size: 18px;
             font-weight: 700;
             color: #2C1810;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             text-align: center;
+            margin-bottom: 4px;
         }
         
-        .level-value {
+        .belt-level {
             font-weight: 900;
-            font-size: 17px;
+            font-size: 20px;
             color: ${beltColor};
         }
         
-        .qr-section {
+        .rank-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #8B4513;
+            letter-spacing: 1px;
+        }
+        
+        /* EXACT MATCH: QR Code Section */
+        .verification-section {
             position: absolute;
             right: 20px;
-            top: 45%;
+            top: 50%;
             text-align: center;
         }
         
-        .qr-code {
-            width: 60px;
-            height: 60px;
+        .qr-code-box {
+            width: 70px;
+            height: 70px;
             background: #fff;
             border-radius: 8px;
             border: 3px solid #333;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0 auto 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin: 0 auto 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
         
         .qr-pattern {
-            width: 45px;
-            height: 45px;
+            width: 55px;
+            height: 55px;
             background: #333;
             border-radius: 4px;
             display: flex;
@@ -330,13 +388,13 @@ class CertificatePDFService {
         .qr-grid {
             display: flex;
             flex-wrap: wrap;
-            width: 30px;
-            height: 30px;
+            width: 36px;
+            height: 36px;
         }
         
         .qr-dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             background: transparent;
             margin: 1px;
         }
@@ -345,131 +403,154 @@ class CertificatePDFService {
             background: #fff;
         }
         
-        .qr-label {
-            font-size: 9px;
+        .verify-text {
+            font-size: 10px;
             font-weight: 700;
             color: #333;
             text-align: center;
-            line-height: 11px;
-            margin-bottom: 4px;
+            line-height: 12px;
         }
         
-        .qr-code-text {
-            font-size: 8px;
-            font-weight: 600;
-            color: #666;
+        /* EXACT MATCH: Official Dojang */
+        .dojang-section {
             text-align: center;
+            margin: 24px 0;
         }
         
-        .signatures-section {
+        .official-seal {
+            background: #8B4513;
+            padding: 8px 24px;
+            border-radius: 20px;
+            border: 2px solid #DAA520;
+            display: inline-block;
+        }
+        
+        .seal-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: #FFD700;
+            letter-spacing: 1px;
+        }
+        
+        /* EXACT MATCH: Signatures */
+        .signatures-row {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            padding: 0 48px;
-            margin-top: 48px;
+            justify-content: space-around;
+            margin: 32px 24px;
         }
         
-        .signature {
+        .signature-block {
             text-align: center;
             flex: 1;
         }
         
-        .signature-title {
-            font-size: 12px;
+        .signature-label {
+            font-size: 14px;
             font-weight: 600;
             color: #8B4513;
             font-style: italic;
-            margin-bottom: 12px;
-            font-family: serif;
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
         }
         
         .signature-line {
-            width: 100px;
+            width: 120px;
             height: 2px;
             background: #8B4513;
-            margin: 0 auto 12px;
+            margin: 0 auto 8px;
         }
         
-        .signature-name {
-            font-size: 14px;
+        .signer-name {
+            font-size: 16px;
             font-weight: 700;
             color: #2C1810;
+            letter-spacing: 1px;
         }
         
-        .certificate-footer {
+        /* EXACT MATCH: Footer */
+        .footer-section {
             text-align: center;
-            margin-top: 16px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(218, 165, 32, 0.3);
         }
         
-        .certificate-id {
-            font-size: 12px;
+        .certificate-id-text {
+            font-size: 14px;
             font-weight: 700;
             color: #8B4513;
             letter-spacing: 1px;
             margin-bottom: 4px;
         }
         
-        .website-url {
-            font-size: 10px;
+        .website-text {
+            font-size: 12px;
             font-weight: 600;
             color: #B8860B;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
     <div class="certificate-container">
-        <div class="outer-frame">
-            <div class="inner-frame">
-                <!-- Decorative corners -->
-                <div class="corner-decoration top-left"></div>
-                <div class="corner-decoration top-right"></div>
-                <div class="corner-decoration bottom-left"></div>
-                <div class="corner-decoration bottom-right"></div>
+        <div class="outer-border">
+            <div class="certificate-background">
+                <!-- EXACT MATCH: Decorative corners -->
+                <div class="corner corner-top-left"></div>
+                <div class="corner corner-top-right"></div>
+                <div class="corner corner-bottom-left"></div>
+                <div class="corner corner-bottom-right"></div>
                 
-                <!-- Header with Logo Integration -->
-                <div class="header-section">
-                    <div class="logo-container">
-                        <div class="logo-image">TKD</div>
+                <!-- EXACT MATCH: Header Section -->
+                <div class="certificate-header">
+                    <div class="logo-section">
+                        <div class="logo-container">
+                            <div class="logo-image">🥋</div>
+                        </div>
                     </div>
-                    <div class="organization-name">TAEKWON-DO ASSOCIATION OF KARNATAKA</div>
-                </div>
-
-                <!-- Certificate Title Section -->
-                <div class="certificate-title-section">
-                    <div class="certificate-main-title">CERTIFICATE</div>
-                    <div class="title-underline"></div>
-                    <div class="certificate-sub-title">OF ACHIEVEMENT</div>
-                    <div class="certificate-discipline">IN TAEKWONDO</div>
-                </div>
-
-                <!-- Decorative ornament -->
-                <div class="decorative-ornament">
-                    <div class="ornament-text">❋</div>
-                </div>
-
-                <!-- Presented To Section -->
-                <div class="presented-section">
-                    <div class="presented-text">Proudly Presented To</div>
-                    <div class="student-name">${(certificate.student || 'STUDENT NAME').toUpperCase()}</div>
-                    <div class="achievement-text">For Outstanding Performance & Dedication in Taekwondo</div>
-                </div>
-
-                <!-- Award Date Section -->
-                <div class="date-section">
-                    <div class="awarded-text">Awarded This</div>
-                    <div class="date-text">${formattedDate}</div>
-                </div>
-
-                <!-- Level and Rank Section -->
-                <div class="level-rank-section">
-                    <div class="level-rank-text">
-                        LEVEL: <span class="level-value">${(certificate.title || 'YELLOW BELT').toUpperCase()}</span>
+                    
+                    <div class="title-section">
+                        <div class="main-title">CERTIFICATE</div>
+                        <div class="title-divider"></div>
+                        <div class="sub-title">OF ACHIEVEMENT</div>
+                        <div class="discipline">IN TAEKWONDO</div>
                     </div>
                 </div>
 
-                <!-- QR Code Section - Positioned on the right side -->
-                <div class="qr-section">
-                    <div class="qr-code">
+                <!-- EXACT MATCH: Decorative Elements -->
+                <div class="martial-arts-section">
+                    <div class="figure left-figure">🥋</div>
+                    <div class="center-ornament">⚡</div>
+                    <div class="figure right-figure">🏆</div>
+                </div>
+
+                <!-- EXACT MATCH: Student Information -->
+                <div class="student-section">
+                    <div class="presented-to">Proudly Presented To</div>
+                    <div class="student-name-large">${(certificate.student || 'STUDENT NAME').toUpperCase()}</div>
+                    <div class="achievement-description">For Outstanding Performance & Dedication in Taekwondo</div>
+                </div>
+
+                <!-- EXACT MATCH: Award Details -->
+                <div class="award-section">
+                    <div class="awarded-label">Awarded This</div>
+                    <div class="date-display">${formattedDate}</div>
+                </div>
+
+                <!-- EXACT MATCH: Belt Level with Medal -->
+                <div class="belt-section">
+                    <div class="medal-container">
+                        <div class="medal">🥋</div>
+                    </div>
+                    <div class="level-text">
+                        LEVEL: <span class="belt-level">${(certificate.title || 'YELLOW BELT').toUpperCase()}</span>
+                    </div>
+                    <div class="rank-text">RANK: 4TH GUP</div>
+                </div>
+
+                <!-- EXACT MATCH: QR Code Verification -->
+                <div class="verification-section">
+                    <div class="qr-code-box">
                         <div class="qr-pattern">
                             <div class="qr-grid">
                                 <div class="qr-dot qr-dot-active"></div>
@@ -484,28 +565,34 @@ class CertificatePDFService {
                             </div>
                         </div>
                     </div>
-                    <div class="qr-label">VERIFY<br>CERTIFICATE</div>
-                    <div class="qr-code-text">${certificate.verificationCode || certificate.id || 'TKD2026'}</div>
+                    <div class="verify-text">VERIFY CERTIFICATE</div>
                 </div>
 
-                <!-- Signatures Section -->
-                <div class="signatures-section">
-                    <div class="signature">
-                        <div class="signature-title">Master Instructor</div>
-                        <div class="signature-line"></div>
-                        <div class="signature-name">Master Kim</div>
-                    </div>
-                    <div class="signature">
-                        <div class="signature-title">Academy Director</div>
-                        <div class="signature-line"></div>
-                        <div class="signature-name">David Lee</div>
+                <!-- EXACT MATCH: Official Dojang -->
+                <div class="dojang-section">
+                    <div class="official-seal">
+                        <div class="seal-text">OFFICIAL DOJANG</div>
                     </div>
                 </div>
 
-                <!-- Certificate Footer -->
-                <div class="certificate-footer">
-                    <div class="certificate-id">CERTIFICATE ID: ${certificate.verificationCode || certificate.id || 'TKD20264578'}</div>
-                    <div class="website-url">www.verifycertificate.com</div>
+                <!-- EXACT MATCH: Signatures -->
+                <div class="signatures-row">
+                    <div class="signature-block">
+                        <div class="signature-label">Master Instructor</div>
+                        <div class="signature-line"></div>
+                        <div class="signer-name">Master Kim</div>
+                    </div>
+                    <div class="signature-block">
+                        <div class="signature-label">Academy Director</div>
+                        <div class="signature-line"></div>
+                        <div class="signer-name">David Lee</div>
+                    </div>
+                </div>
+
+                <!-- EXACT MATCH: Footer -->
+                <div class="footer-section">
+                    <div class="certificate-id-text">CERTIFICATE ID: ${certificate.verificationCode || certificate.id || 'TKD20264578'}</div>
+                    <div class="website-text">www.verifycertificate.com</div>
                 </div>
             </div>
         </div>
@@ -517,20 +604,21 @@ class CertificatePDFService {
   }
 
   /**
-   * Main method to download certificate as PDF - Direct download only, no sharing
+   * Main method to download certificate as PDF - Matches view exactly
    */
   static async downloadCertificatePDF(certificate) {
     try {
-      console.log('📄 Starting PDF download for:', certificate.title);
+      console.log('📄 Starting PDF download for certificate:', certificate.title);
+      console.log('📄 Certificate data:', {
+        student: certificate.student,
+        title: certificate.title,
+        issueDate: certificate.issueDate,
+        verificationCode: certificate.verificationCode || certificate.id
+      });
       
       // Check if required native modules are available
       if (!RNHTMLtoPDF) {
         console.warn('⚠️ PDF generation not available - HtmlToPdf module not linked');
-        Alert.alert(
-          'PDF Generation Unavailable',
-          'PDF generation is currently not available. The certificate can still be viewed on screen.',
-          [{ text: 'OK' }]
-        );
         return { 
           success: false, 
           error: 'PDF generation module not available',
@@ -541,11 +629,6 @@ class CertificatePDFService {
       // Check for file system module (Android only)
       if (Platform.OS === 'android' && !RNFS) {
         console.warn('⚠️ File system not available - RNFS module not linked');
-        Alert.alert(
-          'File System Unavailable',
-          'File system access is not available. PDF generation may be limited.',
-          [{ text: 'OK' }]
-        );
       }
       
       // Check for share module (iOS only)
@@ -562,14 +645,18 @@ class CertificatePDFService {
         }
       }
       
-      // Generate HTML content that matches the certificate design exactly
+      // Generate HTML content that matches the certificate view exactly
       const htmlContent = this.generateCertificateHTML(certificate);
       
-      // Create PDF file name
-      const fileName = (certificate.student || 'Student') + '_' + (certificate.title || 'Certificate') + '_Certificate_' + Date.now() + '.pdf';
+      // Create PDF file name with student and certificate details
+      const studentName = (certificate.student || 'Student').replace(/[^a-zA-Z0-9]/g, '_');
+      const certificateTitle = (certificate.title || 'Certificate').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${studentName}_${certificateTitle}_Certificate_${Date.now()}.pdf`;
       const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
       
-      // Configure PDF options
+      console.log('📄 Generating PDF with filename:', sanitizedFileName);
+      
+      // Configure PDF options for perfect rendering
       const options = {
         html: htmlContent,
         fileName: sanitizedFileName,
@@ -593,12 +680,6 @@ class CertificatePDFService {
             const downloadsPath = RNFS.DownloadDirectoryPath + '/' + sanitizedFileName;
             await RNFS.moveFile(pdf.filePath, downloadsPath);
             
-            Alert.alert(
-              'Certificate Downloaded',
-              'Certificate has been saved to Downloads folder as:\n' + sanitizedFileName,
-              [{ text: 'OK' }]
-            );
-            
             return { 
               success: true, 
               filePath: downloadsPath,
@@ -607,12 +688,6 @@ class CertificatePDFService {
             };
           } else {
             // Fallback when RNFS is not available
-            Alert.alert(
-              'PDF Generated',
-              'Certificate PDF has been generated successfully.',
-              [{ text: 'OK' }]
-            );
-            
             return { 
               success: true, 
               filePath: pdf.filePath,
@@ -625,7 +700,7 @@ class CertificatePDFService {
           if (Share) {
             const shareOptions = {
               title: 'Save Certificate PDF',
-              message: (certificate.title || 'Certificate') + ' Certificate for ' + (certificate.student || 'Student'),
+              message: `${certificate.title || 'Certificate'} Certificate for ${certificate.student || 'Student'}`,
               url: 'file://' + pdf.filePath,
               type: 'application/pdf',
             };
@@ -640,12 +715,6 @@ class CertificatePDFService {
             };
           } else {
             // Fallback when Share is not available
-            Alert.alert(
-              'PDF Generated',
-              'Certificate PDF has been generated successfully.',
-              [{ text: 'OK' }]
-            );
-            
             return { 
               success: true, 
               filePath: pdf.filePath,
@@ -662,23 +731,12 @@ class CertificatePDFService {
       
       // Check if it's a native module error
       if (error.message.includes('TurboModuleRegistry') || error.message.includes('HtmlToPdf')) {
-        Alert.alert(
-          'PDF Feature Unavailable',
-          'PDF download is temporarily unavailable. You can still view the certificate on screen.',
-          [{ text: 'OK' }]
-        );
         return { 
           success: false, 
           error: 'Native module not available',
           fallback: true 
         };
       }
-      
-      Alert.alert(
-        'Download Failed',
-        'Failed to download certificate. Please try again.',
-        [{ text: 'OK' }]
-      );
       
       return { success: false, error: error.message };
     }

@@ -30,9 +30,25 @@ const IconTest = () => {
 
   return (
     <ScrollView style={styles.container}>
+      <Text style={styles.title}>Icon Test - Debug Mode</Text>
+      <Text style={styles.subtitle}>Testing react-native-vector-icons</Text>
       
-      
-      
+      <View style={styles.iconGrid}>
+        {iconTests.map((iconTest, index) => (
+          <View key={index} style={styles.iconItem}>
+            <View style={styles.iconContainer}>
+              <Icon 
+                name={iconTest.name} 
+                type={iconTest.type} 
+                size={28} 
+                color="#ff6b6b" 
+              />
+            </View>
+            <Text style={styles.iconLabel}>{iconTest.label}</Text>
+            <Text style={styles.iconType}>{iconTest.type}</Text>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 };

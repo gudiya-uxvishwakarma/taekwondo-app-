@@ -9,14 +9,13 @@ import {
   Dimensions,
   StatusBar,
   Modal,
-  Image,
 } from 'react-native';
 import { useNavigation } from '../context/NavigationContext';
 import { StudentService } from '../services';
 import IconVerificationScreen from './IconVerificationScreen';
 import Icon from '../components/common/Icon';
+import Logo from '../components/common/Logo';
 import VectorIconTest from '../components/VectorIconTest';
-import { logo } from '../assets';
 
 const { width } = Dimensions.get('window');
 
@@ -166,11 +165,7 @@ const DashboardScreen = () => {
         <View style={styles.headerContent}>
           <View style={styles.leftSection}>
             <View style={styles.avatarContainer}>
-              <Image
-                source={logo}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
+              <Logo size="small" showText={false} variant="navbar" />
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.greeting}>Hello!</Text>
@@ -301,11 +296,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  logoImage: {
-    width: 41,
-    height: 41,
-    borderRadius: 20.5,
   },
   userName: {
     fontSize: 18,

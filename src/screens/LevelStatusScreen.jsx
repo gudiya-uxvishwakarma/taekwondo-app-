@@ -100,33 +100,11 @@ const LevelStatusScreen = () => {
           console.log('✅ Using mock promotion data:', mockPromotions.length, 'promotions');
         }
       } else if (viewMode === 'Upcoming') {
-        console.log('🔄 Loading upcoming belt tests from backend...');
-        console.log('🌐 Belt Tests API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BELTS.TESTS}`);
-        
-        // Try to fetch upcoming belt tests from backend
-        let backendTests = [];
-        try {
-          const result = await StudentService.getBeltTests({ upcoming: 'true' });
-          
-          if (result && result.status === 'success' && result.data && result.data.tests) {
-            backendTests = result.data.tests;
-            console.log('✅ Got', backendTests.length, 'upcoming tests from backend');
-          }
-        } catch (backendError) {
-          console.log('⚠️ Upcoming tests request failed:', backendError.message);
-        }
-        
-        // Process upcoming tests
-        if (backendTests.length > 0) {
-          const processedTests = processBackendTestData(backendTests);
-          setLevelData(processedTests);
-          console.log('✅ Using backend test data:', processedTests.length, 'upcoming tests');
-        } else {
-          console.log('📊 No backend data, using mock test data');
-          const mockTests = getMockUpcomingTestsData();
-          setLevelData(mockTests);
-          console.log('✅ Using mock test data:', mockTests.length, 'upcoming tests');
-        }
+        // Always use static data for Upcoming - no backend call
+        console.log('📊 Loading static upcoming tests data...');
+        const mockTests = getMockUpcomingTestsData();
+        setLevelData(mockTests);
+        console.log('✅ Using static test data:', mockTests.length, 'upcoming tests');
       } else {
         // Fallback for any other view mode
         const mockBelts = getMockBeltLevelsData();
@@ -134,10 +112,13 @@ const LevelStatusScreen = () => {
       }
     } catch (error) {
       console.error('❌ Failed to load level data:', error);
-      // Always fallback to mock data
+      // Always fallback to mock data based on view mode
       if (viewMode === 'Promotions') {
         const mockPromotions = getMockPromotionsData();
         setLevelData(mockPromotions);
+      } else if (viewMode === 'Upcoming') {
+        const mockTests = getMockUpcomingTestsData();
+        setLevelData(mockTests);
       } else {
         const mockBelts = getMockBeltLevelsData();
         setLevelData(mockBelts);
@@ -246,59 +227,48 @@ const LevelStatusScreen = () => {
   const getMockUpcomingTestsData = () => {
     return [
       {
-        id: 1,
+        id: '1',
         type: 'upcoming',
-        studentName: 'Kevin Martinez',
+        studentName: 'Alex Chen',
+        currentBelt: 'Yellow Belt',
+        testingFor: 'Orange',
+        date: '2/11/2026',
+        readiness: 45,
+        status: 'scheduled',
+        notes: 'Needs more practice on basic techniques.'
+      },
+      {
+        id: '2',
+        type: 'upcoming',
+        studentName: 'Lisa Wang',
         currentBelt: 'White Belt',
         testingFor: 'Yellow Belt',
-        date: '15 Feb 2026',
-        readiness: 85,
+        date: '4/5/2026',
+        readiness: 70,
         status: 'scheduled',
-        notes: 'Student shows good progress in basic techniques.'
+        notes: 'Good progress, keep practicing forms.'
       },
       {
-        id: 2,
+        id: '3',
         type: 'upcoming',
-        studentName: 'Rachel Green',
+        studentName: 'David Kim',
         currentBelt: 'Yellow Belt',
         testingFor: 'Orange Belt',
-        date: '20 Feb 2026',
-        readiness: 90,
+        date: '4/10/2026',
+        readiness: 82,
         status: 'scheduled',
-        notes: 'Excellent form execution. Very confident.'
+        notes: 'Excellent technique, almost ready for test.'
       },
       {
-        id: 3,
+        id: '4',
         type: 'upcoming',
-        studentName: 'Tom Anderson',
-        currentBelt: 'Orange Belt',
-        testingFor: 'Green Belt',
-        date: '25 Feb 2026',
-        readiness: 75,
+        studentName: 'John Smith',
+        currentBelt: 'White Belt',
+        testingFor: 'Yellow Belt',
+        date: '5/5/2111',
+        readiness: 20,
         status: 'scheduled',
-        notes: 'Good technique but needs more sparring practice.'
-      },
-      {
-        id: 4,
-        type: 'upcoming',
-        studentName: 'Nina Patel',
-        currentBelt: 'Green Belt',
-        testingFor: 'Blue Belt',
-        date: '05 Mar 2026',
-        readiness: 95,
-        status: 'scheduled',
-        notes: 'Outstanding student with leadership qualities.'
-      },
-      {
-        id: 5,
-        type: 'upcoming',
-        studentName: 'Michael Johnson',
-        currentBelt: 'Brown Belt',
-        testingFor: 'Black Belt 1st Dan',
-        date: '25 Mar 2026',
-        readiness: 92,
-        status: 'scheduled',
-        notes: 'Exceptional candidate for black belt.'
+        notes: 'Just started, needs significant practice.'
       }
     ];
   };
@@ -382,7 +352,25 @@ const LevelStatusScreen = () => {
     ];
   };
 
-  const beltLevelsData = levelData.length > 0 ? levelData : getMockBeltLevelsData();
+  // Get appropriate data based on view mode
+  const getDisplayData = () => {
+    if (levelData.length > 0) {
+      return levelData;
+    }
+    
+    // Fallback to mock data based on view mode
+    if (viewMode === 'Belt Levels') {
+      return getMockBeltLevelsData();
+    } else if (viewMode === 'Promotions') {
+      return getMockPromotionsData();
+    } else if (viewMode === 'Upcoming') {
+      return getMockUpcomingTestsData();
+    }
+    
+    return getMockBeltLevelsData();
+  };
+
+  const beltLevelsData = getDisplayData();
 
   const handleBackPress = () => {
     navigate('Dashboard');

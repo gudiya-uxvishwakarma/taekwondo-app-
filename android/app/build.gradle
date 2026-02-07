@@ -1,9 +1,10 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
-def enableProguardInReleaseBuilds = true
+def enableProguardInReleaseBuilds = false
 def jscFlavor = 'org.webkit:android-jsc:+'
-def enableHermes = true
+def enableHermes = false  // Keep Hermes disabled for maximum stability
 
 android {
     namespace "com.reactnative"
@@ -23,17 +24,17 @@ android {
         applicationId "com.reactnative"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 4
+        versionName "1.3"
         
         manifestPlaceholders = [
             usesCleartextTraffic: "true"
         ]
 
         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "false"
-        buildConfigField "boolean", "IS_HERMES_ENABLED", "true"
+        buildConfigField "boolean", "IS_HERMES_ENABLED", "false"
         
-        // Enable multidex to fix DEX merging issues
+        // Essential for preventing DEX issues
         multiDexEnabled true
     }
 
@@ -45,29 +46,91 @@ android {
             shrinkResources false
         }
         release {
+            // ULTRA STABLE RELEASE CONFIGURATION - IDENTICAL TO DEBUG
             signingConfig signingConfigs.debug
+            
+            // Make release EXACTLY like debug to prevent crashes
             debuggable false
-            minifyEnabled enableProguardInReleaseBuilds
-            shrinkResources enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            minifyEnabled false  // NO code minification
+            shrinkResources false  // NO resource shrinking
+            multiDexEnabled true  // Essential for large apps
+            crunchPngs false  // Don't optimize images
             
-            // Disable crashes in release
-            crunchPngs false
+            // Simple AAPT options - no complex parameters
+            aaptOptions {
+                noCompress 'ttf', 'otf', 'mp3', 'wav', 'ogg', 'json', 'js', 'bundle'
+                additionalParameters '--no-version-vectors'
+            }
             
-            // Enable separate APKs for different architectures
+            // Disable all splits to include everything
             splits {
                 abi {
                     reset()
+                    enable false
+                }
+                density {
                     enable false
                 }
             }
         }
     }
 
+    // Enhanced packaging options to prevent ALL native crashes
     packagingOptions {
+        // Pick first for all possible native library conflicts
         pickFirst '**/libc++_shared.so'
         pickFirst '**/libjsc.so'
         pickFirst '**/libfbjni.so'
+        pickFirst '**/libfolly_json.so'
+        pickFirst '**/libglog.so'
+        pickFirst '**/libhermes.so'
+        pickFirst '**/libjscexecutor.so'
+        pickFirst '**/libturbomodulejsijni.so'
+        pickFirst '**/libreactnativejni.so'
+        pickFirst '**/libfolly_runtime.so'
+        pickFirst '**/libglog_init.so'
+        pickFirst '**/libyoga.so'
+        pickFirst '**/libfb.so'
+        pickFirst '**/libfabricjni.so'
+        pickFirst '**/libfolly_futures.so'
+        pickFirst '**/libglog.so'
+        pickFirst '**/libjsi.so'
+        pickFirst '**/libfolly_json.so'
+        pickFirst '**/libdouble-conversion.so'
+        pickFirst '**/libboost_system.so'
+        
+        // Exclude ALL problematic META-INF files
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/io.netty.versions.properties'
+        exclude 'META-INF/*.kotlin_module'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'META-INF/MANIFEST.MF'
+        exclude '**/kotlin/**'
+        exclude 'kotlin/**'
+        exclude '**/*.kotlin_metadata'
+        exclude '**/module-info.class'
+    }
+
+    // Source sets configuration for proper asset inclusion
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets', 'src/main/assets/fonts']
+            res.srcDirs = ['src/main/res']
+        }
+    }
+
+    // Compile options for stability
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 

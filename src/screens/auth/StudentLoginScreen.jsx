@@ -15,11 +15,10 @@ import {
   StatusBar,
   SafeAreaView,
   TouchableWithoutFeedback,
-  Image,
 } from 'react-native';
 import { useStudent } from '../../context/StudentContext';
 import Icon from '../../components/common/Icon';
-import { logo } from '../../assets'; 
+import Logo from '../../components/common/Logo'; 
 
 // Updated: Using Logo component properly - displays logo.png from assets
 // Last updated: 2026-02-04 - Logo improvements
@@ -153,12 +152,7 @@ const StudentLoginScreen = () => {
             ]}
           >
             <View style={styles.logoContainer}>
-              <Image
-                source={logo}
-                style={styles.logoImage}
-                resizeMode="contain"
-                testID="login-logo"
-              />
+              <Logo size="xlarge" showText={false} variant="login" />
             </View>
             <Text style={styles.welcomeEmoji}>👋</Text>
             <Text style={styles.welcomeTitle}>Welcome Back!</Text>
@@ -379,11 +373,6 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderWidth: 4,
     borderColor: '#ffffff',
-  },
-  logoImage: {
-    width: 85,
-    height: 85,
-    borderRadius: 42,
   },
   welcomeEmoji: {
     fontSize: 32,

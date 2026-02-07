@@ -13,6 +13,7 @@ import StudentLoginScreen from './src/screens/auth/StudentLoginScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import ErrorBoundary from './src/components/common/ErrorBoundary';
 import { colors, typography, spacing } from './src/theme';
+import IconTestScreen from './src/screens/IconTestScreen'; // TEMPORARY FOR TESTING
 
 // Ignore specific warnings that might cause issues
 if (__DEV__) {
@@ -56,6 +57,9 @@ const AppContent = () => {
 };
 
 function App() {
+  // TEMPORARY: Uncomment below line to test icons directly
+  // return <IconTestScreen />;
+  
   return (
     <ErrorBoundary>
       <StudentProvider>

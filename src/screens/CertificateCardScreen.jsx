@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import Icon from '../components/common/Icon';
 import { useStudent } from '../context/StudentContext';
@@ -114,19 +115,51 @@ const CertificateCardScreen = () => {
 
   const handleDownloadCertificate = async (certificate) => {
     try {
-      console.log('📥 Downloading certificate PDF:', certificate.title);
+      console.log('📥 Starting certificate PDF download from card:', certificate.title);
       setDownloadingCertificate(certificate.id);
       
-      // Use the main download method - direct PDF download only
+      // Use the main download method - same as modal
       const result = await CertificatePDFService.downloadCertificatePDF(certificate);
       
       if (result.success) {
-        console.log('✅ Certificate PDF download completed:', result.fileName);
+        console.log('✅ Certificate PDF download completed from card:', result.fileName);
+        Alert.alert(
+          'Download Successful! 🎉',
+          `Certificate PDF downloaded successfully!\n\nFile: ${result.fileName}`,
+          [{ text: 'Great!' }]
+        );
       } else {
-        console.error('❌ Certificate download failed:', result.error);
+        console.error('❌ Certificate download failed from card:', result.error);
+        if (result.fallback) {
+          Alert.alert(
+            'PDF Feature Unavailable',
+            'PDF download is temporarily unavailable. You can still view the certificate by clicking the "View" button.',
+            [
+              { text: 'View Certificate', onPress: () => handleViewCertificate(certificate) },
+              { text: 'OK' }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Download Failed',
+            'Failed to download certificate. Please try again.',
+            [
+              { text: 'Retry', onPress: () => handleDownloadCertificate(certificate) },
+              { text: 'Cancel' }
+            ]
+          );
+        }
       }
     } catch (error) {
-      console.error('❌ Certificate download failed:', error);
+      console.error('❌ Certificate download failed from card:', error);
+      Alert.alert(
+        'Download Error',
+        'An unexpected error occurred while downloading the certificate.',
+        [
+          { text: 'Retry', onPress: () => handleDownloadCertificate(certificate) },
+          { text: 'Cancel' }
+        ]
+      );
     } finally {
       setDownloadingCertificate(null);
     }
@@ -202,7 +235,7 @@ const CertificateCardScreen = () => {
           </View>
           
           <View style={styles.detailRow}>
-            <Icon name="trending-up" size={16} color="#999" type="MaterialIcons" />
+            <View style={[styles.levelColorIndicator, { backgroundColor: getBeltColor(certificate.title) }]} />
             <Text style={styles.detailLabel}>Level:</Text>
             <Text style={styles.detailText}>{certificate.beltLevel || certificate.level || certificate.title}</Text>
           </View>
@@ -487,6 +520,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.xs,
     gap: spacing.xs,
+  },
+  levelColorIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   detailLabel: {
     fontSize: 14,

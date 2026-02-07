@@ -8,12 +8,12 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  Image,
 } from 'react-native';
 import { useNavigation } from '../../context/NavigationContext';
 import { useStudent } from '../../context/StudentContext';
 import { colors } from '../../theme';
 import Icon from './Icon';
+import Logo from './Logo';
 
 
 
@@ -97,11 +97,7 @@ const Navbar = () => {
       <View style={styles.navbar}>
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/taekwondo-logo.jpg')}
-            style={styles.logoImage}
-            resizeMode="cover"
-          />
+          <Logo size="small" showText={false} variant="navbar" />
         </View>
 
 
@@ -148,11 +144,7 @@ const Navbar = () => {
               <View style={styles.menuHeader}>
                 <View style={styles.logoSection}>
                   <View style={styles.menuLogoContainer}>
-                    <Image
-                      source={require('../../assets/taekwondo-logo.jpg')}
-                      style={styles.menuLogoImage}
-                      resizeMode="contain"
-                    />
+                    <Logo size="large" showText={false} variant="navbar" />
                   </View>
                   <Text style={styles.menuHeaderTitle}>Taekwon-Do Association</Text>
                   <Text style={styles.menuHeaderSubtitle}>Karnataka</Text>
@@ -240,22 +232,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff3cd', // Changed from white to cream/yellow
+    backgroundColor: '#ffffff', // Pure white background for logo
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#ffd700', // Changed to golden border
+    borderColor: '#ffd700', // Golden border for premium look
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
-  },
-  logoImage: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    elevation: 10,
   },
   titleContainer: {
     flex: 1,
@@ -350,23 +337,18 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#fff3cd', // Changed from white to cream/yellow
+    backgroundColor: '#ffffff', // Pure white background for logo
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#ffd700', // Changed to golden border
+    borderColor: '#ffd700', // Golden border for premium look
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 12,
     marginBottom: 12,
-  },
-  menuLogoImage: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
   },
   menuHeaderTitle: {
     fontSize: 20,

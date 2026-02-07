@@ -252,13 +252,18 @@ class StudentService {
   async getPromotions(queryParams = {}) {
     try {
       console.log('🏆 Loading promotions...');
+      console.log('🏆 Query params:', queryParams);
       
       let response;
       try {
-        response = await api.get('/belts/promotions', queryParams);
+        // Try authenticated endpoint first
+        response = await api.get(this.endpoints.BELTS.PROMOTIONS, queryParams);
+        console.log('✅ Authenticated promotions response:', response);
       } catch (authError) {
         console.log('⚠️ Authenticated promotions endpoint failed, trying public endpoint:', authError.message);
-        response = await api.get('/promotions-public', queryParams);
+        // Try public endpoint as fallback
+        response = await api.get('/belts/tests/promotions-public', queryParams);
+        console.log('✅ Public promotions response:', response);
       }
       
       if (response.status === 'success') {
@@ -278,6 +283,7 @@ class StudentService {
       console.error('❌ Error fetching promotions:', error);
       
       // Return sample promotions as fallback
+      console.log('🔄 Using fallback sample promotions...');
       return {
         status: 'success',
         data: {
@@ -291,13 +297,18 @@ class StudentService {
   async getBeltTests(queryParams = {}) {
     try {
       console.log('📝 Loading belt tests...');
+      console.log('📝 Query params:', queryParams);
       
       let response;
       try {
-        response = await api.get('/belts/tests', queryParams);
+        // Try authenticated endpoint first
+        response = await api.get(this.endpoints.BELTS.TESTS, queryParams);
+        console.log('✅ Authenticated belt tests response:', response);
       } catch (authError) {
         console.log('⚠️ Authenticated belt tests endpoint failed, trying public endpoint:', authError.message);
-        response = await api.get('/belt-tests-public', queryParams);
+        // Try public endpoint as fallback
+        response = await api.get('/belts/tests/public', queryParams);
+        console.log('✅ Public belt tests response:', response);
       }
       
       if (response.status === 'success') {
@@ -317,6 +328,7 @@ class StudentService {
       console.error('❌ Error fetching belt tests:', error);
       
       // Return sample belt tests as fallback
+      console.log('🔄 Using fallback sample belt tests...');
       return {
         status: 'success',
         data: {
@@ -561,24 +573,138 @@ class StudentService {
     ];
   }
 
-  // Sample belt tests data
+  // Sample belt tests data - Updated to match backend format
   getSampleBeltTests() {
     return [
       {
-        id: 'TEST-001',
-        studentName: 'Mike Johnson',
-        testingFor: 'Green Belt',
-        testDate: new Date('2025-02-15'),
-        status: 'scheduled',
-        requirements: ['Forms 1-3', 'Sparring', 'Breaking']
+        _id: 'TEST-001',
+        studentName: 'Golu Vishwakarma',
+        currentBelt: 'Red Belt',
+        testingFor: '1st Dan Black Belt',
+        testDate: new Date('2025-03-15'),
+        testTime: '10:00 AM',
+        location: 'Main Dojo',
+        examiner: 'Grand Master Kim',
+        status: 'Scheduled',
+        registrationDate: new Date('2025-01-20'),
+        requirements: [
+          'All Taegeuk forms (1-8)',
+          'Advanced breaking techniques',
+          'Teaching demonstration',
+          'Leadership skills assessment',
+          'Physical fitness test'
+        ],
+        testingFee: 3000,
+        paymentStatus: 'Paid',
+        notes: 'Exceptional student ready for black belt',
+        readiness: 95,
+        createdBy: 'ADMIN-001',
+        createdAt: new Date('2025-01-20'),
+        updatedAt: new Date('2025-01-20')
       },
       {
-        id: 'TEST-002',
-        studentName: 'Sarah Wilson',
+        _id: 'TEST-002',
+        studentName: 'Priya Patel',
+        currentBelt: 'Blue Belt',
+        testingFor: 'Red Belt',
+        testDate: new Date('2025-02-28'),
+        testTime: '2:00 PM',
+        location: 'Training Hall A',
+        examiner: 'Master Lee',
+        status: 'Scheduled',
+        registrationDate: new Date('2025-01-25'),
+        requirements: [
+          'Taegeuk forms 1-6',
+          'Advanced spinning kicks',
+          'Tournament sparring',
+          'Student mentoring demonstration',
+          'Board breaking (3 boards)'
+        ],
+        testingFee: 1800,
+        paymentStatus: 'Paid',
+        notes: 'Strong technical skills, good leadership potential',
+        readiness: 88,
+        createdBy: 'ADMIN-001',
+        createdAt: new Date('2025-01-25'),
+        updatedAt: new Date('2025-01-25')
+      },
+      {
+        _id: 'TEST-003',
+        studentName: 'Rahul Kumar',
+        currentBelt: 'Green Belt',
         testingFor: 'Blue Belt',
-        testDate: new Date('2025-02-22'),
-        status: 'scheduled',
-        requirements: ['Forms 4-5', 'Advanced Sparring', 'Self-Defense']
+        testDate: new Date('2025-02-15'),
+        testTime: '11:00 AM',
+        location: 'Main Dojo',
+        examiner: 'Master Park',
+        status: 'Scheduled',
+        registrationDate: new Date('2025-01-28'),
+        requirements: [
+          'Taegeuk forms 1-5',
+          'Jump kicks (front, side, roundhouse)',
+          'Advanced sparring techniques',
+          'Self-defense combinations',
+          'Multiple board breaking'
+        ],
+        testingFee: 1600,
+        paymentStatus: 'Pending',
+        notes: 'Needs to improve consistency in forms',
+        readiness: 75,
+        createdBy: 'ADMIN-001',
+        createdAt: new Date('2025-01-28'),
+        updatedAt: new Date('2025-01-28')
+      },
+      {
+        _id: 'TEST-004',
+        studentName: 'Kevin Martinez',
+        currentBelt: 'White Belt',
+        testingFor: 'Yellow Belt',
+        testDate: new Date('2025-02-10'),
+        testTime: '3:00 PM',
+        location: 'Training Hall B',
+        examiner: 'Master Kim',
+        status: 'Scheduled',
+        registrationDate: new Date('2025-01-15'),
+        requirements: [
+          'Basic stances and blocks',
+          'Basic punches and kicks',
+          'Taegeuk Il Jang form',
+          'Basic sparring techniques',
+          'Board breaking (1 board)'
+        ],
+        testingFee: 1000,
+        paymentStatus: 'Paid',
+        notes: 'Good progress in basic techniques',
+        readiness: 82,
+        createdBy: 'ADMIN-001',
+        createdAt: new Date('2025-01-15'),
+        updatedAt: new Date('2025-01-15')
+      },
+      {
+        _id: 'TEST-005',
+        studentName: 'Sneha Singh',
+        currentBelt: 'Yellow Belt',
+        testingFor: 'Orange Belt',
+        testDate: new Date('2025-02-20'),
+        testTime: '1:00 PM',
+        location: 'Main Dojo',
+        examiner: 'Master Lee',
+        status: 'Scheduled',
+        registrationDate: new Date('2025-01-18'),
+        requirements: [
+          'All previous requirements',
+          'Advanced kicks and combinations',
+          'Taegeuk Sam Jang form',
+          'Intermediate sparring',
+          'Self-defense techniques'
+        ],
+        testingFee: 1200,
+        paymentStatus: 'Paid',
+        notes: 'Excellent form execution and confidence',
+        readiness: 90,
+        createdBy: 'ADMIN-001',
+        createdAt: new Date('2025-01-18'),
+        updatedAt: new Date('2025-01-18')
       }
     ];
   }
