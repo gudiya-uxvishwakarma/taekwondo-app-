@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '../context/NavigationContext';
 import { StudentService } from '../services';
-import IconVerificationScreen from './IconVerificationScreen';
 import Icon from '../components/common/Icon';
 import Logo from '../components/common/Logo';
 import VectorIconTest from '../components/VectorIconTest';
@@ -24,19 +23,51 @@ const DashboardScreen = () => {
   const [showIconTest, setShowIconTest] = useState(false);
 
   // Quick Overview Data - Updated with dynamic calculations
-  const [pendingFees, setPendingFees] = useState(3); // This will be dynamic from API
-  const [totalEvents, setTotalEvents] = useState(25); // This will be dynamic from API
-  const [attendancePercentage, setAttendancePercentage] = useState(95); // This will be dynamic from API
+  const [pendingFees, setPendingFees] = useState(0);
+  const [totalEvents, setTotalEvents] = useState(0);
+  const [attendancePercentage, setAttendancePercentage] = useState(0);
+  const [currentBeltLevel, setCurrentBeltLevel] = useState('Loading...');
+  const [studentName, setStudentName] = useState('Student');
 
-  // Simulate fetching real data - Replace with actual API calls
+  // Fetch dashboard data - with authentication handling
   useEffect(() => {
-    // Simulate API calls to get real data
     const fetchDashboardData = async () => {
       try {
-        // Replace these with actual API calls
-        // const studentsResponse = await fetch('/api/students/count');
-        // const eventsResponse = await fetch('/api/events/count');
-        // const attendanceResponse = await fetch('/api/attendance/percentage');
+        // Get student profile first to get name and belt level
+        try {
+          const profileResponse = await StudentService.getProfile();
+          if (profileResponse) {
+            setStudentName(profileResponse.fullName || profileResponse.name || 'Student');
+            setCurrentBeltLevel(profileResponse.currentBeltLevel || 'N/A');
+            console.log('✅ Profile loaded:', profileResponse.fullName, 'Belt:', profileResponse.currentBeltLevel);
+          }
+        } catch (profileError) {
+          console.log('⚠️ Could not fetch profile:', profileError.message);
+        }
+
+        // Get attendance data to calculate individual percentage
+        try {
+          const attendanceResponse = await StudentService.getAttendance();
+          if (attendanceResponse && attendanceResponse.status === 'success') {
+            const attendanceRecords = attendanceResponse.data?.attendance || [];
+            
+            if (attendanceRecords.length > 0) {
+              // Calculate attendance percentage
+              const presentCount = attendanceRecords.filter(record => 
+                record.status && (record.status.toLowerCase() === 'present' || record.status.toLowerCase() === 'late')
+              ).length;
+              
+              const percentage = Math.round((presentCount / attendanceRecords.length) * 100);
+              setAttendancePercentage(percentage);
+              console.log('✅ Attendance calculated:', percentage + '%', `(${presentCount}/${attendanceRecords.length})`);
+            } else {
+              setAttendancePercentage(0);
+            }
+          }
+        } catch (attendanceError) {
+          console.log('⚠️ Could not fetch attendance:', attendanceError.message);
+          setAttendancePercentage(0);
+        }
         
         // Try to get real pending fees count from StudentService
         try {
@@ -56,30 +87,36 @@ const DashboardScreen = () => {
             ).length;
             
             setPendingFees(pendingCount);
+            console.log('✅ Fees data loaded:', pendingCount, 'pending');
           } else {
-            // Fallback to mock data
-            const mockPendingFees = Math.floor(Math.random() * 6); // 0-5 pending fees
-            setPendingFees(mockPendingFees);
+            setPendingFees(0);
           }
         } catch (feesError) {
-          console.log('⚠️ Could not fetch fees data for dashboard:', feesError.message);
-          // Fallback to mock data
-          const mockPendingFees = Math.floor(Math.random() * 6); // 0-5 pending fees
-          setPendingFees(mockPendingFees);
+          console.log('⚠️ Could not fetch fees data:', feesError.message);
+          setPendingFees(0);
         }
-        
-        // For now, using mock data for other metrics
-        const mockEvents = Math.floor(Math.random() * 15) + 20; // 20-35 events
-        const mockAttendance = Math.floor(Math.random() * 20) + 80; // 80-100% attendance
-        
-        setTotalEvents(mockEvents);
-        setAttendancePercentage(mockAttendance);
+
+        // Get events count
+        try {
+          const eventsResponse = await StudentService.getEvents();
+          if (eventsResponse && eventsResponse.status === 'success') {
+            const eventsArray = eventsResponse.data?.events || [];
+            setTotalEvents(eventsArray.length);
+            console.log('✅ Events loaded:', eventsArray.length);
+          } else {
+            setTotalEvents(0);
+          }
+        } catch (eventsError) {
+          console.log('⚠️ Could not fetch events:', eventsError.message);
+          setTotalEvents(0);
+        }
       } catch (error) {
         console.error('❌ Error fetching dashboard data:', error);
         // Set fallback values to prevent crashes
         setPendingFees(0);
-        setTotalEvents(25);
-        setAttendancePercentage(95);
+        setTotalEvents(0);
+        setAttendancePercentage(0);
+        setCurrentBeltLevel('N/A');
       }
     };
 
@@ -91,36 +128,44 @@ const DashboardScreen = () => {
       title: `${pendingFees}`, 
       subtitle: 'Pending Fees', 
       icon: 'account-balance-wallet', 
-      color: pendingFees > 0 ? '#f39c12' : '#27ae60', // Orange if pending, green if none
-      bgColor: pendingFees > 0 ? '#fef9e7' : '#eafaf1', // Light orange/green background
+      color: pendingFees > 0 ? '#f39c12' : '#27ae60',
+      bgColor: pendingFees > 0 ? '#fef9e7' : '#eafaf1',
       route: 'Fees'
     },
     { 
       title: `${totalEvents}`, 
       subtitle: 'Total Events', 
       icon: 'event', 
-      color: '#e74c3c',
-      bgColor: '#ffeaea',
+      color: '#006CB5',
+      bgColor: '#e3f2fd',
       route: 'Events'
     },
     { 
       title: `${attendancePercentage}%`, 
-      subtitle: 'Attendance', 
+      subtitle: 'My Attendance', 
       icon: 'assignment-turned-in', 
-      color: '#e74c3c',
-      bgColor: '#ffeaea',
+      color: attendancePercentage >= 75 ? '#27ae60' : '#f39c12',
+      bgColor: attendancePercentage >= 75 ? '#eafaf1' : '#fef9e7',
       route: 'Attendance'
+    },
+    { 
+      title: currentBeltLevel, 
+      subtitle: 'My Belt Level', 
+      icon: 'military-tech', 
+      color: '#8e44ad',
+      bgColor: '#f4ecf7',
+      route: 'Level'
     },
   ];
 
-  // Quick Access Data - Updated with only requested options
+  // Quick Access Data - Updated: Removed Online Payment, Added Gallery
   const quickAccess = [
-    { title: 'Attendance', icon: 'assignment-turned-in', color: '#e74c3c', route: 'Attendance' },
-    { title: 'Level/Belt', icon: 'military-tech', color: '#e74c3c', route: 'Level' },
-    { title: 'Events', icon: 'event', color: '#e74c3c', route: 'Events' },
-    { title: 'Certificates', icon: 'card-membership', color: '#e74c3c', route: 'Certificates' },
-    { title: 'Fees', icon: 'account-balance-wallet', color: '#e74c3c', route: 'Fees' },
-    { title: 'Online Payment', icon: 'payment', color: '#e74c3c', route: 'OnlinePayment' },
+    { title: 'Attendance', icon: 'assignment-turned-in', color: '#006CB5', route: 'Attendance' },
+    { title: 'Level/Belt', icon: 'military-tech', color: '#006CB5', route: 'Level' },
+    { title: 'Events', icon: 'event', color: '#006CB5', route: 'Events' },
+    { title: 'Certificates', icon: 'card-membership', color: '#006CB5', route: 'Certificates' },
+    { title: 'Fees', icon: 'account-balance-wallet', color: '#006CB5', route: 'Fees' },
+    { title: 'Gallery', icon: 'photo-library', color: '#006CB5', route: 'Gallery' },
   ];
 
   const handleQuickOverviewPress = (item) => {
@@ -129,8 +174,13 @@ const DashboardScreen = () => {
       console.log('Navigating to:', item.route);
       
       // Navigate to the screen using the route property
+      // Commented out belt level navigation as requested
       if (item.route && ['Fees', 'Events', 'Attendance'].includes(item.route)) {
         navigate(item.route);
+      } else if (item.route === 'Level') {
+        // Navigate to Level Status screen
+        console.log('Navigating to Level Status screen');
+        navigate('Level');
       } else {
         Alert.alert('Coming Soon', `${item.subtitle} feature will be available soon!`);
       }
@@ -144,8 +194,13 @@ const DashboardScreen = () => {
     try {
       console.log('Navigating to:', item.route);
       // Navigate to existing screens
-      if (['Attendance', 'Level', 'Events', 'Certificates', 'Fees'].includes(item.route)) {
+      // Commented out belt level navigation as requested
+      if (['Attendance', 'Events', 'Certificates', 'Fees', 'Gallery'].includes(item.route)) {
         navigate(item.route);
+      } else if (item.route === 'Level') {
+        // Navigate to Level Status screen
+        console.log('Navigating to Level Status screen');
+        navigate('Level');
       } else {
         // For features not yet implemented
         Alert.alert('Coming Soon', `${item.title} feature will be available soon!`);
@@ -158,7 +213,7 @@ const DashboardScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
       
       {/* Custom Header */}
       <View style={styles.header}>
@@ -169,7 +224,7 @@ const DashboardScreen = () => {
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.greeting}>Hello!</Text>
-              <Text style={styles.userName}>Adarsh</Text>
+              <Text style={styles.userName}>{studentName}</Text>
             </View>
           </View>
           <View style={styles.rightSection}>
@@ -232,7 +287,7 @@ const DashboardScreen = () => {
       {/* Vector Icon Test Modal */}
       <Modal visible={showIconTest} animationType="slide" onRequestClose={() => setShowIconTest(false)}>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#e74c3c' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#006CB5' }}>
             <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Vector Icons Test</Text>
             <TouchableOpacity onPress={() => setShowIconTest(false)}>
               <Icon name="close" size={24} color="#fff" type="MaterialIcons" />
@@ -253,7 +308,7 @@ const styles = StyleSheet.create({
   
   // Custom Header
   header: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -348,14 +403,15 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  // Quick Overview - Reduced height
+  // Quick Overview - Now 4 cards in 2x2 grid
   overviewGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 12,
   },
   overviewCard: {
-    flex: 1,
+    width: (width - 52) / 2,
     backgroundColor: '#fff',
     padding: 15,
     borderRadius: 15,
@@ -366,7 +422,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderLeftWidth: 4,
-    borderLeftColor: '#e74c3c',
+    borderLeftColor: '#006CB5',
     minHeight: 100,
   },
   overviewIconContainer: {
@@ -415,7 +471,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#ffeaea',
+    backgroundColor: '#e3f2fd',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,

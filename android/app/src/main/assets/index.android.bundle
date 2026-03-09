@@ -45445,13 +45445,13 @@ __d(function(g, r, i, a, m, e, d) {
             this.timeout = _api.default.TIMEOUT;
             this.workingUrl = null;
  // Cache for working URL
-                        this.fallbackUrls = _api.default.FALLBACK_URLS || [ "https://taekwon-frontend.onrender.com/api", 
+                        this.fallbackUrls = _api.default.FALLBACK_URLS || [ "https://taekwondo-backend-j8w4.onrender.com/api", 
             // Render production URL - Primary
-            "http://192.168.1.48:5000/api", 
+            "https://taekwondo-backend-j8w4.onrender.com/api", 
             // Local development IP - Fallback
             "http://10.0.2.2:5000/api", 
             // Android emulator mapping - Fallback
-            "http://localhost:5000/api" ];
+            "https://taekwondo-backend-j8w4.onrender.com/api" ];
             // Create axios instance
                         this.axiosInstance = _axios.default.create({
                 baseURL: this.baseURL,
@@ -47409,14 +47409,14 @@ __d(function(g, r, i, a, m, e, d) {
     e.default = undefined;
     // API Configuration
         var API_CONFIG = {
-        BASE_URL: "https://taekwon-frontend.onrender.com/api",
+        BASE_URL: "https://taekwondo-backend-j8w4.onrender.com/api",
         // Local development IP - Original
         TIMEOUT: 1e4,
-        FALLBACK_URLS: [ "https://taekwon-frontend.onrender.com/api", 
+        FALLBACK_URLS: [ "https://taekwondo-backend-j8w4.onrender.com/api", 
         // Local development IP - Primary
-        "https://taekwon-frontend.onrender.com/api", 
+        "https://taekwondo-backend-j8w4.onrender.com/api", 
         // Android emulator mapping
-        "https://taekwon-frontend.onrender.com/api" ],
+        "https://taekwondo-backend-j8w4.onrender.com/api" ],
         ENDPOINTS: {
             AUTH: {
                 LOGIN: "/login",

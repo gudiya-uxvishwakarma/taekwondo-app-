@@ -18,17 +18,25 @@ import Icon from '../components/common/Icon';
 
 const EventsScreen = () => {
   const { navigate } = useNavigation();
-  const [viewMode, setViewMode] = useState('All Events'); // 'All Events', 'Upcoming', 'Past'
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedMonth, setSelectedMonth] = useState('February');
+  
+  // Get current date
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIndex = currentDate.getMonth();
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const currentMonthName = monthNames[currentMonthIndex];
+  
+  const [viewMode, setViewMode] = useState('Upcoming'); // Default to 'Upcoming' to show upcoming events
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState('All Months'); // Show all months by default
   const [eventsData, setEventsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
 
-  // Academic years and months data
-  const academicYears = [2024, 2025, 2026, 2027, 2028];
+  // Academic years and months data - generate years dynamically
+  const academicYears = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
   const months = ['All Months', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const eventTypes = ['All Events', 'Upcoming', 'Past'];
 
@@ -64,7 +72,7 @@ const EventsScreen = () => {
       
       console.log('📡 Fetching events with params:', queryParams);
       
-      // Try to fetch from backend using centralized API service with authentication
+      // Fetch from backend only - NO MOCK DATA
       let backendEvents = [];
       try {
         console.log('🔄 Trying events endpoint via StudentService');
@@ -80,26 +88,23 @@ const EventsScreen = () => {
         }
       } catch (backendError) {
         console.log('⚠️ Events request failed:', backendError.message);
-        console.log('🔄 Using fallback sample data...');
+        console.log('📊 No events available');
       }
       
-      // Process events (backend or mock)
+      // Process events from backend only
       if (backendEvents.length > 0) {
         const processedEvents = processBackendEventsData(backendEvents);
         setEventsData(processedEvents);
         console.log('✅ Using backend data:', processedEvents.length, 'events');
       } else {
-        console.log('📊 No backend data, using mock data');
-        const mockEvents = getMockEventsData();
-        setEventsData(mockEvents);
-        console.log('✅ Using mock data:', mockEvents.length, 'events');
+        console.log('📊 No events found in backend');
+        setEventsData([]);
       }
     } catch (error) {
       console.error('❌ Failed to load events:', error);
-      // Always fallback to mock data
-      const mockEvents = getMockEventsData();
-      setEventsData(mockEvents);
-      console.log('🔄 Fallback to mock data:', mockEvents.length, 'events');
+      // No fallback - just show empty
+      setEventsData([]);
+      console.log('📊 No events available');
     } finally {
       setLoading(false);
     }
@@ -147,130 +152,6 @@ const EventsScreen = () => {
     setRefreshing(true);
     await loadEventsData();
     setRefreshing(false);
-  };
-
-  // Mock events data - Dynamic based on selected year/month with complete details
-  const getMockEventsData = () => {
-    // Define which year/month combinations have events
-    const eventsAvailable = {
-      2024: ['January', 'February', 'March'],
-      2025: ['January', 'February'],
-      2026: ['January', 'February'],
-      2027: []
-    };
-    
-    // Check if current selection has events
-    const hasEvents = eventsAvailable[selectedYear]?.includes(selectedMonth) || selectedMonth === 'All Months';
-    
-    if (!hasEvents && selectedMonth !== 'All Months') {
-      return [];
-    }
-    
-    // Return different events based on year/month combination - SIMPLIFIED
-    const eventsData = {
-      2024: {
-        'January': [
-          { 
-            id: 1, 
-            name: 'Karnataka State Taekwondo Championship', 
-            date: '15 Jan 2024', 
-            location: 'Bangalore Sports Complex',
-            level: 'All Levels', 
-            status: 'Past'
-          },
-          { 
-            id: 2, 
-            name: 'Dan & Kup Belt Grading Examination', 
-            date: '20 Jan 2024', 
-            location: 'Main Dojo, Mysore',
-            level: 'Intermediate', 
-            status: 'Past'
-          }
-        ],
-        'February': [
-          { 
-            id: 3, 
-            name: 'South India Taekwondo Open Tournament', 
-            date: '10 Feb 2024', 
-            location: 'Hubli Stadium',
-            level: 'Advanced', 
-            status: 'Past'
-          }
-        ],
-        'March': [
-          { 
-            id: 4, 
-            name: 'Black Belt Master Class Training', 
-            date: '05 Mar 2024', 
-            location: 'Coorg Training Center',
-            level: 'Black Belt', 
-            status: 'Past'
-          }
-        ]
-      },
-      2025: {
-        'January': [
-          { 
-            id: 5, 
-            name: 'Winter Taekwondo Championship', 
-            date: '12 Jan 2025', 
-            location: 'Mangalore Sports Arena',
-            level: 'All Levels', 
-            status: 'Past'
-          }
-        ],
-        'February': [
-          { 
-            id: 6, 
-            name: 'ITF Black Belt Dan Grading', 
-            date: '18 Feb 2025', 
-            location: 'Headquarters Dojo, Bangalore',
-            level: 'Black Belt', 
-            status: 'Past'
-          }
-        ]
-      },
-      2026: {
-        'January': [
-          { 
-            id: 7, 
-            name: 'New Year Taekwondo Grand Prix', 
-            date: '25 Jan 2026', 
-            location: 'Bangalore International Stadium',
-            level: 'All Levels', 
-            status: 'Upcoming'
-          }
-        ],
-        'February': [
-          { 
-            id: 8, 
-            name: 'Youth Taekwondo Development Seminar', 
-            date: '15 Feb 2026', 
-            location: 'Youth Center, Mysore',
-            level: 'Beginner', 
-            status: 'Upcoming'
-          },
-          { 
-            id: 9, 
-            name: 'Inter-School Taekwondo Championship', 
-            date: '28 Feb 2026', 
-            location: 'School Sports Complex, Hubli',
-            level: 'Intermediate', 
-            status: 'Upcoming'
-          }
-        ]
-      }
-    };
-    
-    console.log(`📊 Mock data for ${selectedYear}/${selectedMonth}:`, eventsData[selectedYear]?.[selectedMonth] || []);
-    
-    if (selectedMonth === 'All Months') {
-      // Return all events for the selected year
-      const yearEvents = eventsData[selectedYear] || {};
-      return Object.values(yearEvents).flat();
-    }
-    
-    return eventsData[selectedYear]?.[selectedMonth] || [];
   };
 
   const currentEventsData = eventsData || [];
@@ -363,7 +244,7 @@ const EventsScreen = () => {
                 style={styles.monthNavButton}
                 onPress={() => navigateMonth(-1)}
               >
-                <Icon name="chevron-left" size={24} color="#e74c3c" type="MaterialIcons" />
+                <Icon name="chevron-left" size={24} color="#006CB5" type="MaterialIcons" />
               </TouchableOpacity>
               
               <Text style={styles.calendarTitle}>
@@ -374,7 +255,7 @@ const EventsScreen = () => {
                 style={styles.monthNavButton}
                 onPress={() => navigateMonth(1)}
               >
-                <Icon name="chevron-right" size={24} color="#e74c3c" type="MaterialIcons" />
+                <Icon name="chevron-right" size={24} color="#006CB5" type="MaterialIcons" />
               </TouchableOpacity>
             </View>
 
@@ -454,7 +335,7 @@ const EventsScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+        <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
@@ -465,7 +346,7 @@ const EventsScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e74c3c" />
+          <ActivityIndicator size="large" color="#006CB5" />
           <Text style={styles.loadingText}>Loading events...</Text>
         </View>
       </View>
@@ -474,7 +355,7 @@ const EventsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -499,8 +380,8 @@ const EventsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#e74c3c']}
-            tintColor="#e74c3c"
+            colors={['#006CB5']}
+            tintColor="#006CB5"
           />
         }
       >
@@ -592,11 +473,11 @@ const EventsScreen = () => {
                       <View style={[
                         styles.statusDot, 
                         { backgroundColor: 
-                          event.status === 'Upcoming' ? '#ea104aff' : 
+                          event.status === 'Upcoming' ? '#006CB5' : 
                           event.status === 'Today' ? '#FF9800' : 
-                          event.status === 'Past' ? '#95a5a6' : '#e74c3c'
+                          event.status === 'Past' ? '#95a5a6' : '#006CB5'
                         }
-                      ]}>
+                      ]}>>
                         <Icon 
                           name={
                             event.status === 'Upcoming' ? 'schedule' : 
@@ -613,7 +494,7 @@ const EventsScreen = () => {
                         { color: 
                           event.status === 'Upcoming' ? '#4CAF50' : 
                           event.status === 'Today' ? '#FF9800' : 
-                          event.status === 'Past' ? '#95a5a6' : '#e74c3c'
+                          event.status === 'Past' ? '#95a5a6' : '#006CB5'
                         }
                       ]}>
                         {event.status.toUpperCase()}
@@ -679,7 +560,7 @@ const styles = StyleSheet.create({
   
   // Header
   header: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -748,7 +629,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedItem: {
-    backgroundColor: '#de181cff',
+    backgroundColor: '#006CB5',
   },
   selectionText: {
     fontSize: 14,
@@ -782,7 +663,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
     borderLeftWidth: 5,
-    borderLeftColor: '#e74c3c',
+    borderLeftColor: '#006CB5',
   },
   eventHeader: {
     marginBottom: 15,
@@ -822,9 +703,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   levelValue: {
-    color: '#e74c3c',
+    color: '#006CB5',
     fontWeight: '800',
-    backgroundColor: '#ffeaea',
+    backgroundColor: '#e3f2fd',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -844,7 +725,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   feeValue: {
-    color: '#e30e0eff',
+    color: '#006CB5',
     fontWeight: '800',
     backgroundColor: '#e8f5e8',
     paddingHorizontal: 8,
@@ -992,7 +873,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   todayCell: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
   },
   eventDayCell: {
     backgroundColor: '#fff3cd',
@@ -1025,7 +906,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,

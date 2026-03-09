@@ -15,7 +15,10 @@ class AuthService {
       
       throw new Error(response.message || 'Login failed');
     } catch (error) {
-      console.error('Login failed:', error);
+      // Only log in development
+      if (__DEV__) {
+        console.log('⚠️ Login failed:', error.message);
+      }
       throw error;
     }
   }
@@ -58,6 +61,21 @@ class AuthService {
     } catch (error) {
       console.error('Token refresh failed:', error);
       await removeToken();
+      throw error;
+    }
+  }
+
+  async changePassword(passwordData) {
+    try {
+      const response = await api.put('/auth/change-password', passwordData);
+      
+      if (response.status === 'success') {
+        return response;
+      }
+      
+      throw new Error(response.message || 'Password change failed');
+    } catch (error) {
+      console.error('Password change failed:', error);
       throw error;
     }
   }

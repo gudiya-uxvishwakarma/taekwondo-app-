@@ -8,18 +8,29 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '../context/NavigationContext';
+import { StudentService } from '../services';
 import Icon from '../components/common/Icon';
+import api from '../services/api';
 
 const FeesScreen = () => {
   const { navigate } = useNavigation();
   const [feesData, setFeesData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [dataSource, setDataSource] = useState('sample');
+  const [dataSource, setDataSource] = useState('api');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedFee, setSelectedFee] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [transactionId, setTransactionId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [processingPayment, setProcessingPayment] = useState(false);
 
-  // Load fees data - SAFE VERSION
+  // Load fees data from API
   useEffect(() => {
     loadFeesData();
   }, []);
@@ -27,88 +38,71 @@ const FeesScreen = () => {
   const loadFeesData = async () => {
     try {
       setLoading(true);
-      console.log('📊 Loading fees data from admin panel...');
+      console.log('📊 Loading fees data from API...');
       
-      // Admin panel data - 6 students (from screenshot)
-      const adminPanelFees = [
-        {
-          _id: 'FEET69508239247DU5',
-          feeId: 'FEET69508239247DU5',
-          studentName: 'Sarah Johnson',
-          course: 'Advanced',
-          feeType: 'Registration Fee',
-          amount: 500,
-          paidAmount: 0,
-          pendingAmount: 500,
-          dueDate: new Date('2026-01-27'),
-          status: 'Overdue',
-        },
-        {
-          _id: 'FEET69508181481MF',
-          feeId: 'FEET69508181481MF',
-          studentName: 'John Smith',
-          course: 'Intermediate',
-          feeType: 'Exam Fee',
-          amount: 300,
-          paidAmount: 0,
-          pendingAmount: 300,
-          dueDate: new Date('2026-01-28'),
-          status: 'Pending',
-        },
-        {
-          _id: 'FEET69508182507P9G',
-          feeId: 'FEET69508182507P9G',
-          studentName: 'John Smith',
-          course: 'Intermediate',
-          feeType: 'Exam Fee',
-          amount: 300,
-          paidAmount: 199.98,
-          pendingAmount: 100.02,
-          dueDate: new Date('2026-01-28'),
-          status: 'Partial',
-        },
-        {
-          _id: 'FEET69508121479Q8B',
-          feeId: 'FEET69508121479Q8B',
-          studentName: 'Golu Vishwakarma',
-          course: 'Beginner',
-          feeType: 'Registration Fee',
-          amount: 500,
-          paidAmount: 500,
-          pendingAmount: 0,
-          dueDate: new Date('2026-01-28'),
-          status: 'Paid',
-        },
-        {
-          _id: 'FEET68560687920Y1',
-          feeId: 'FEET68560687920Y1',
-          studentName: 'Arjun Sharma M',
-          course: 'Intermediate',
-          feeType: 'Registration Fee',
-          amount: 5003,
-          paidAmount: 5003,
-          pendingAmount: 0,
-          dueDate: new Date('2026-01-24'),
-          status: 'Paid',
-        },
-        {
-          _id: 'FEET68543523355GIN',
-          feeId: 'FEET68543523355GIN',
-          studentName: 'asea',
-          course: 'Beginner',
-          feeType: 'Monthly Fee',
-          amount: 2000,
-          paidAmount: 2000,
-          pendingAmount: 0,
-          dueDate: new Date('2026-01-21'),
-          status: 'Paid',
-        },
-      ];
+      // Fetch real data from backend
+      const response = await StudentService.getFees();
       
-      setFeesData(adminPanelFees);
-      setDataSource('admin_panel');
-      console.log('✅ Loaded 6 fees from admin panel');
-      console.log('✅ Fees data loaded successfully');
+      if (response && response.status === 'success') {
+        let fees = [];
+        
+        // Extract fees array from response
+        if (response.data && response.data.fees) {
+          fees = response.data.fees;
+        } else if (response.fees) {
+          fees = response.fees;
+        } else if (Array.isArray(response.data)) {
+          fees = response.data;
+        }
+        
+        console.log('📊 Raw fees from backend:', fees);
+        
+        // Transform fees to match screen format
+        const transformedFees = fees.map(fee => {
+          const amount = parseFloat(fee.amount || 0);
+          const totalPaidAmount = parseFloat(fee.totalPaidAmount || 0);
+          const lateFeeAmount = parseFloat(fee.lateFee?.amount || 0);
+          const discountAmount = parseFloat(fee.discount?.amount || 0);
+          
+          // Calculate total amount including late fee and discount
+          const totalAmount = amount + lateFeeAmount - discountAmount;
+          
+          // Calculate pending amount
+          const pendingAmount = Math.max(0, totalAmount - totalPaidAmount);
+          
+          console.log(`📊 Fee ${fee.feeId}:`, {
+            amount,
+            totalPaidAmount,
+            lateFeeAmount,
+            discountAmount,
+            totalAmount,
+            pendingAmount,
+            status: fee.status
+          });
+          
+          return {
+            _id: fee._id || fee.feeId,
+            feeId: fee.feeId || fee._id,
+            studentName: fee.studentName || 'Unknown',
+            course: fee.course || 'N/A',
+            feeType: fee.feeType || fee.course,
+            amount: totalAmount,
+            paidAmount: totalPaidAmount,
+            pendingAmount: pendingAmount,
+            dueDate: fee.dueDate ? new Date(fee.dueDate) : new Date(),
+            status: fee.status || 'Pending',
+          };
+        });
+        
+        console.log('📊 Transformed fees:', transformedFees);
+        
+        setFeesData(transformedFees);
+        setDataSource('api');
+        console.log(`✅ Loaded ${transformedFees.length} fees from API`);
+      } else {
+        console.log('⚠️ No fees data in response, using empty array');
+        setFeesData([]);
+      }
       
     } catch (error) {
       console.error('❌ Error loading fees:', error);
@@ -130,6 +124,92 @@ const FeesScreen = () => {
     } catch (error) {
       console.error('Navigation error:', error);
     }
+  };
+
+  const handlePayFee = (fee) => {
+    setSelectedFee(fee);
+    setPaymentAmount(fee.pendingAmount?.toString() || fee.amount?.toString() || '');
+    setTransactionId('');
+    setPaymentMethod('UPI');
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSubmit = async () => {
+    try {
+      if (!paymentMethod) {
+        Alert.alert('Error', 'Please select a payment method');
+        return;
+      }
+
+      const amount = parseFloat(paymentAmount);
+      if (isNaN(amount) || amount <= 0) {
+        Alert.alert('Error', 'Please enter a valid payment amount');
+        return;
+      }
+
+      const pendingAmount = selectedFee.pendingAmount || (selectedFee.amount - selectedFee.paidAmount);
+      if (amount > pendingAmount) {
+        Alert.alert('Error', `Payment amount cannot exceed pending amount (₹${pendingAmount})`);
+        return;
+      }
+
+      setProcessingPayment(true);
+
+      // Auto-generate transaction ID
+      const autoTransactionId = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+
+      console.log('💳 Submitting payment:', {
+        feeId: selectedFee._id,
+        amount,
+        paymentMethod,
+        transactionId: autoTransactionId
+      });
+
+      // Call payment API
+      const response = await api.post(`/fees/${selectedFee._id}/payment`, {
+        amount,
+        paymentMethod,
+        transactionId: autoTransactionId,
+        paidDate: new Date().toISOString(),
+        notes: `Payment made via mobile app - ${paymentMethod}`
+      });
+
+      console.log('✅ Payment response:', response);
+
+      if (response.status === 'success') {
+        Alert.alert(
+          'Payment Successful',
+          response.message || 'Your payment has been recorded successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setShowPaymentModal(false);
+                setSelectedFee(null);
+                loadFeesData(); // Reload fees data
+              }
+            }
+          ]
+        );
+      } else {
+        throw new Error(response.message || 'Payment failed');
+      }
+    } catch (error) {
+      console.error('❌ Payment error:', error);
+      Alert.alert(
+        'Payment Failed',
+        error.message || 'Failed to process payment. Please try again.'
+      );
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleCancelPayment = () => {
+    setShowPaymentModal(false);
+    setSelectedFee(null);
+    setTransactionId('');
+    setPaymentAmount('');
   };
 
   // Calculate totals - SAFE
@@ -177,7 +257,7 @@ const FeesScreen = () => {
       switch (status?.toLowerCase()) {
         case 'paid': return '#4CAF50';
         case 'pending': return '#FF9800';
-        case 'overdue': return '#F44336';
+        case 'overdue': return '#006CB5';
         case 'partial': return '#2196F3';
         default: return '#666';
       }
@@ -192,7 +272,7 @@ const FeesScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+        <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Icon name="arrow-back" size={24} color="#fff" />
@@ -201,7 +281,7 @@ const FeesScreen = () => {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e74c3c" />
+          <ActivityIndicator size="large" color="#006CB5" />
           <Text style={styles.loadingText}>Loading fees...</Text>
         </View>
       </View>
@@ -210,7 +290,7 @@ const FeesScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -228,8 +308,8 @@ const FeesScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#e74c3c']}
-            tintColor="#e74c3c"
+            colors={['#006CB5']}
+            tintColor="#006CB5"
           />
         }
       >
@@ -247,8 +327,8 @@ const FeesScreen = () => {
             <Text style={styles.statLabel}>Paid</Text>
           </View>
           <View style={styles.statCard}>
-            <Icon name="pending" size={20} color="#F44336" type="MaterialIcons" />
-            <Text style={[styles.statValue, { color: '#F44336' }]}>₹{totals.pendingAmount.toLocaleString()}</Text>
+            <Icon name="pending" size={20} color="#006CB5" type="MaterialIcons" />
+            <Text style={[styles.statValue, { color: '#006CB5' }]}>₹{totals.pendingAmount.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
         </View>
@@ -296,9 +376,9 @@ const FeesScreen = () => {
 
                 {(fee?.pendingAmount || 0) > 0 && (
                   <View style={styles.feeRow}>
-                    <Icon name="pending" size={16} color="#F44336" type="MaterialIcons" />
+                    <Icon name="pending" size={16} color="#006CB5" type="MaterialIcons" />
                     <Text style={styles.feeLabel}>Pending:</Text>
-                    <Text style={[styles.feeValue, { color: '#F44336' }]}>₹{parseFloat(fee?.pendingAmount || 0).toLocaleString()}</Text>
+                    <Text style={[styles.feeValue, { color: '#006CB5' }]}>₹{parseFloat(fee?.pendingAmount || 0).toLocaleString()}</Text>
                   </View>
                 )}
                 
@@ -308,6 +388,18 @@ const FeesScreen = () => {
                   <Text style={styles.feeValue}>{formatDate(fee?.dueDate)}</Text>
                 </View>
               </View>
+
+              {/* Pay Button - Show only for Pending/Partial/Overdue fees */}
+              {(fee?.status === 'Pending' || fee?.status === 'Partial' || fee?.status === 'Overdue') && (
+                <TouchableOpacity
+                  style={styles.payButton}
+                  onPress={() => handlePayFee(fee)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="payment" size={18} color="#fff" type="MaterialIcons" />
+                  <Text style={styles.payButtonText}>Pay Now</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))
         ) : (
@@ -318,6 +410,89 @@ const FeesScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelPayment}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Make Payment</Text>
+              <TouchableOpacity onPress={handleCancelPayment} style={styles.modalCloseButton}>
+                <Icon name="close" size={24} color="#666" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedFee && (
+              <>
+                <View style={styles.modalFeeInfo}>
+                  <Text style={styles.modalFeeTitle}>{selectedFee.course}</Text>
+                  <Text style={styles.modalFeeAmount}>
+                    Pending: ₹{(selectedFee.pendingAmount || (selectedFee.amount - selectedFee.paidAmount)).toLocaleString()}
+                  </Text>
+                </View>
+
+                <View style={styles.modalForm}>
+                  <Text style={styles.modalLabel}>Payment Amount</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Enter amount"
+                    keyboardType="numeric"
+                    value={paymentAmount}
+                    onChangeText={setPaymentAmount}
+                  />
+
+                  <Text style={styles.modalLabel}>Payment Method</Text>
+                  <View style={styles.paymentMethodContainer}>
+                    {['UPI', 'Cash', 'Bank Transfer', 'Card'].map((method) => (
+                      <TouchableOpacity
+                        key={method}
+                        style={[
+                          styles.paymentMethodButton,
+                          paymentMethod === method && styles.paymentMethodButtonActive
+                        ]}
+                        onPress={() => setPaymentMethod(method)}
+                      >
+                        <Text style={[
+                          styles.paymentMethodText,
+                          paymentMethod === method && styles.paymentMethodTextActive
+                        ]}>
+                          {method}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.modalCancelButton}
+                      onPress={handleCancelPayment}
+                      disabled={processingPayment}
+                    >
+                      <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalSubmitButton, processingPayment && styles.modalSubmitButtonDisabled]}
+                      onPress={handlePaymentSubmit}
+                      disabled={processingPayment}
+                    >
+                      {processingPayment ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.modalSubmitButtonText}>Submit Payment</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -328,7 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -517,6 +692,153 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7f8c8d',
     marginTop: 16,
+  },
+  payButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  payButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalFeeInfo: {
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalFeeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  modalFeeAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#006CB5',
+  },
+  modalForm: {
+    padding: 20,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: '#333',
+    backgroundColor: '#fff',
+  },
+  paymentMethodContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  paymentMethodButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  paymentMethodButtonActive: {
+    backgroundColor: '#006CB5',
+    borderColor: '#006CB5',
+  },
+  paymentMethodText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  paymentMethodTextActive: {
+    color: '#fff',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#666',
+  },
+  modalSubmitButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+  },
+  modalSubmitButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  modalSubmitButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 

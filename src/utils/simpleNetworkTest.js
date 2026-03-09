@@ -3,9 +3,9 @@ export const testNetworkConnection = async () => {
   console.log('🧪 Testing network connectivity...');
   
   const testUrls = [
-    'https://taekwon-frontend.onrender.com/api/simple-test', // Local development IP - Original
-    'https://taekwon-frontend.onrender.com/api/simple-test',     // Emulator mapping
-    'https://taekwon-frontend.onrender.com/api/simple-test',    // Localhost
+    'https://taekwondo-backend-j8w4.onrender.com/api/simple-test', // Local development IP - Original
+    'https://taekwondo-backend-j8w4.onrender.com/api/simple-test',     // Emulator mapping
+    'https://taekwondo-backend-j8w4.onrender.com/api/simple-test',    // Localhost
   ];
   
   for (const url of testUrls) {
@@ -37,9 +37,9 @@ export const testLogin = async (credentials) => {
   console.log('🔐 Testing direct login...');
   
   const testUrls = [
-    'https://taekwon-frontend.onrender.com/api/logins', // Local development IP - Original
-    'https://taekwon-frontend.onrender.com/api/logins',     // Emulator mapping
-    'https://taekwon-frontend.onrender.com/api/logins'     // Localhost
+    'https://taekwondo-backend-j8w4.onrender.com/api/logins', // Local development IP - Original
+    'https://taekwondo-backend-j8w4.onrender.com/api/logins',     // Emulator mapping
+    'https://taekwondo-backend-j8w4.onrender.com/api/logins'     // Localhost
   ];
   
   for (const url of testUrls) {

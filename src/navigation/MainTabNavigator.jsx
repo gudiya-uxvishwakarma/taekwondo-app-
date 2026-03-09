@@ -5,7 +5,7 @@ import { NavigationProvider, useNavigation } from '../context/NavigationContext'
 import Icon from '../components/common/Icon';
 
 // Import screens with error handling
-let DashboardScreen, AttendanceScreen, FeesScreen, ProfileScreen, LevelStatusScreen, EventsScreen, CertificateCardScreen;
+let DashboardScreen, AttendanceScreen, FeesScreen, ProfileScreen, LevelStatusScreen, EventsScreen, CertificateCardScreen, GalleryScreen;
 
 try {
   DashboardScreen = require('../screens/DashboardScreen').default;
@@ -54,6 +54,13 @@ try {
 } catch (e) {
   console.warn('CertificateCardScreen not found:', e);
   CertificateCardScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Certificate Screen Loading...</Text></View>;
+}
+
+try {
+  GalleryScreen = require('../screens/GalleryScreen').default;
+} catch (e) {
+  console.warn('GalleryScreen not found:', e);
+  GalleryScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Gallery Screen Loading...</Text></View>;
 }
 
 
@@ -115,7 +122,7 @@ const TabNavigatorContent = () => {
     Level: LevelStatusScreen,
     Events: EventsScreen,
     Certificates: CertificateCardScreen,
-   
+    Gallery: GalleryScreen,
   };
 
   const renderActiveScreen = () => {

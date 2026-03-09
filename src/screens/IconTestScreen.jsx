@@ -32,7 +32,7 @@ const IconTestScreen = () => {
                   name={iconTest.name} 
                   type={iconTest.type} 
                   size={32} 
-                  color="#ff6b6b" 
+                  color="#006CB5" 
                 />
               </View>
               <Text style={styles.iconLabel}>{iconTest.label}</Text>

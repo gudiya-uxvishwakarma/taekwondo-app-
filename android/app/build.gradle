@@ -142,6 +142,9 @@ dependencies {
     // Multidex support
     implementation("androidx.multidex:multidex:2.0.1")
     
+    // Required for react-native-image-picker - PickVisualMedia API
+    implementation("androidx.activity:activity:1.8.0")
+    
     // React Native dependencies
     implementation("com.facebook.react:react-android:0.72.6")
     implementation("com.facebook.soloader:soloader:0.10.5")

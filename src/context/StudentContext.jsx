@@ -69,14 +69,12 @@ export const StudentProvider = ({ children }) => {
     
     try {
       // Direct backend authentication
-      console.log('🔐 Attempting login with backend...');
-      console.log('📧 Email:', credentials.email);
+      console.log('🔐 Attempting login...');
       
       const response = await AuthService.login(credentials);
       
       if (response && response.user && response.token) {
-        console.log('✅ Login successful:', response.user);
-        console.log('🎫 Token received:', !!response.token);
+        console.log('✅ Login successful');
         
         // Save token separately and user data
         await saveUserData(response.user);
@@ -86,10 +84,13 @@ export const StudentProvider = ({ children }) => {
         return true;
       }
       
-      console.log('❌ Login failed - invalid response structure');
+      console.log('⚠️ Login failed - invalid response');
       return false;
     } catch (error) {
-      console.error('❌ Login failed:', error.message);
+      // Only log in development
+      if (__DEV__) {
+        console.log('⚠️ Login error:', error.message);
+      }
       
       // Reset state on error
       setStudent(null);
@@ -98,7 +99,7 @@ export const StudentProvider = ({ children }) => {
       try {
         await clearAllData();
       } catch (clearError) {
-        console.log('⚠️ Failed to clear data after login error:', clearError);
+        // Silent fail
       }
       
       return false;

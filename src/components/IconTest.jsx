@@ -41,7 +41,7 @@ const IconTest = () => {
                 name={iconTest.name} 
                 type={iconTest.type} 
                 size={28} 
-                color="#ff6b6b" 
+                color="#006CB5" 
               />
             </View>
             <Text style={styles.iconLabel}>{iconTest.label}</Text>

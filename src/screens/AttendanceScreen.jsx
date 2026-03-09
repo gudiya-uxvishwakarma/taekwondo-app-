@@ -41,15 +41,23 @@ const { width } = Dimensions.get('window');
 const AttendanceScreen = () => {
   const { isAuthenticated } = useStudent();
   const { navigate } = useNavigation();
-  const [viewMode, setViewMode] = useState('Yearly'); // 'Yearly' or 'Monthly'
-  const [selectedYear, setSelectedYear] = useState(2024);
-  const [selectedMonth, setSelectedMonth] = useState('Jan');
+  
+  // Get current date
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIndex = currentDate.getMonth();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonthName = monthNames[currentMonthIndex];
+  
+  const [viewMode, setViewMode] = useState('Monthly'); // 'Yearly' or 'Monthly'
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
   const [attendanceData, setAttendanceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Academic years and months data
-  const academicYears = [2024, 2025, 2026, 2027];
+  // Academic years and months data - generate years dynamically
+  const academicYears = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // Load attendance data from backend
@@ -277,7 +285,7 @@ const AttendanceScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+        <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
@@ -293,7 +301,7 @@ const AttendanceScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e74c3c" />
+          <ActivityIndicator size="large" color="#006CB5" />
           <Text style={styles.loadingText}>Loading attendance data...</Text>
         </View>
       </View>
@@ -319,7 +327,7 @@ const AttendanceScreen = () => {
         let statusBgColor = '#d1fae5';
         
         if (record.status?.toLowerCase() === 'absent') {
-          statusColor = '#ef4444';
+          statusColor = '#006CB5';
           statusBgColor = '#fee2e2';
           statusText = 'ABSENT';
         } else if (record.status?.toLowerCase() === 'late') {
@@ -384,7 +392,7 @@ const AttendanceScreen = () => {
         id: recordId++,
         date: `${dayName}, ${day} ${month}`,
         status: 'ABSENT',
-        statusColor: '#F44336',
+        statusColor: '#006CB5',
       });
     }
     
@@ -422,7 +430,7 @@ const AttendanceScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#e74c3c" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
       
       {/* Enhanced Header */}
       <View style={styles.header}>
@@ -450,8 +458,8 @@ const AttendanceScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#e74c3c']}
-            tintColor="#e74c3c"
+            colors={['#006CB5']}
+            tintColor="#006CB5"
           />
         }
       >
@@ -466,7 +474,7 @@ const AttendanceScreen = () => {
             onPress={handleViewModeToggle}
           >
             <Icon 
-              name={viewMode === 'Yearly' ? 'calendar-month' : 'calendar-year'} 
+              name={viewMode === 'Yearly' ? 'calendar-month' : 'calendar-range'} 
               size={16} 
               color="#fff" 
               type="MaterialCommunityIcons" 
@@ -553,10 +561,10 @@ const AttendanceScreen = () => {
           <View style={[styles.statCard, styles.absentCard]}>
             <View style={styles.statHeader}>
               <View style={[styles.statIconBg, { backgroundColor: '#ffebee' }]}>
-                <Icon name="cancel" size={18} color="#F44336" type="MaterialIcons" />
+                <Icon name="cancel" size={18} color="#006CB5" type="MaterialIcons" />
               </View>
             </View>
-            <Text style={[styles.statValue, { color: '#F44336' }]}>{currentStats.absent}</Text>
+            <Text style={[styles.statValue, { color: '#006CB5' }]}>{currentStats.absent}</Text>
             <Text style={styles.statLabel}>Absent</Text>
           </View>
 
@@ -668,7 +676,7 @@ const styles = StyleSheet.create({
   
   // Enhanced Header
   header: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -746,7 +754,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   switchButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
@@ -788,7 +796,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedItem: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
   },
   selectionText: {
     fontSize: 14,
@@ -809,12 +817,12 @@ const styles = StyleSheet.create({
   },
   mainStatCard: {
     width: (width - 48) / 2,
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#006CB5',
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e74c3c',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -854,7 +862,7 @@ const styles = StyleSheet.create({
   },
   absentCard: {
     borderLeftWidth: 3,
-    borderLeftColor: '#F44336',
+    borderLeftColor: '#006CB5',
   },
   lateCard: {
     borderLeftWidth: 3,
@@ -935,7 +943,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderLeftWidth: 4,
-    borderLeftColor: '#e74c3c',
+    borderLeftColor: '#006CB5',
   },
   recordMainInfo: {
     flexDirection: 'row',
@@ -1144,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   beltText: {
     fontSize: 11,
-    color: '#dc2626',
+    color: '#006CB5',
     fontWeight: '700',
     marginLeft: 4,
   },

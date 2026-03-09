@@ -28,14 +28,7 @@ const StudentLoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showEmailSuggestions, setShowEmailSuggestions] = useState(false);
   const { login } = useStudent();
-
-  // Admin credentials - only one option
-  const adminCredentials = {
-    email: 'admin@combatwarrior.com',
-    password: 'admin123'
-  };
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -65,14 +58,6 @@ const StudentLoginScreen = () => {
     ]).start();
   }, []);
 
-  // Handle admin credentials selection
-  const handleAdminCredentialsSelect = () => {
-    setEmail(adminCredentials.email);
-    setPassword(adminCredentials.password);
-    setShowEmailSuggestions(false);
-    console.log('✅ Admin credentials selected');
-  };
-
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing Information', 'Please enter both email and password');
@@ -82,8 +67,7 @@ const StudentLoginScreen = () => {
     setLoading(true);
     
     try {
-      console.log('🔐 Starting login process...');
-      console.log('📧 Email:', email);
+      console.log('🔐 Starting login...');
       
       // Direct login through context - this handles both AuthService and context
       const success = await login({ email, password });
@@ -92,22 +76,37 @@ const StudentLoginScreen = () => {
         console.log('✅ Login successful');
         Alert.alert('Success', 'Login successful!');
       } else {
-        console.log('❌ Login failed');
-        Alert.alert('Login Failed', 'Invalid email or password. Please try again.');
+        console.log('⚠️ Login failed');
+        Alert.alert('Login Failed', 'Invalid email or password. Please check your credentials and try again.');
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      // Only log in development
+      if (__DEV__) {
+        console.log('⚠️ Login error:', error.message);
+      }
       
-      let errorMessage = 'Invalid email or password. Please try again.';
+      let errorMessage = 'Invalid email or password';
       
-      if (error.message.includes('Network request failed')) {
-        errorMessage = 'Network connection failed. Please check your connection.';
-      } else if (error.message.includes('401')) {
-        errorMessage = 'Invalid email or password';
-      } else if (error.message.includes('timeout')) {
-        errorMessage = 'Connection timeout. Please try again.';
-      } else {
-        errorMessage = 'Login failed. Please check your credentials.';
+      // Check for specific error types
+      if (error.message) {
+        if (error.message.includes('Network request failed') || error.message.includes('Network Error')) {
+          errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+        } else if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('Authentication failed')) {
+          errorMessage = 'Invalid password. Please check your password and try again.';
+        } else if (error.message.includes('404') || error.message.includes('not found')) {
+          errorMessage = 'Email not found. Please check your email address.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Connection timeout. Please try again.';
+        } else if (error.message.includes('Invalid credentials') || error.message.includes('Login failed')) {
+          errorMessage = 'Invalid email or password. Please check your credentials.';
+        }
+      }
+      
+      // Check response status if available
+      if (error.response?.status === 401) {
+        errorMessage = 'Invalid password. Please check your password and try again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Email not found. Please check your email address.';
       }
       
       Alert.alert('Login Failed', errorMessage);
@@ -162,19 +161,18 @@ const StudentLoginScreen = () => {
           </Animated.View>
 
           {/* Login Form */}
-          <TouchableWithoutFeedback onPress={() => setShowEmailSuggestions(false)}>
-            <Animated.View 
-              style={[
-                styles.formContainer,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
+          <Animated.View 
+            style={[
+              styles.formContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
             <View style={styles.formHeader}>
               <View style={styles.formLogoContainer}>
-                <Icon name="person" size={24} color="#ef4444" type="MaterialIcons" />
+                <Icon name="person" size={24} color="#006CB5" type="MaterialIcons" />
               </View>
               <Text style={styles.formTitle}>Student Login</Text>
               <Text style={styles.formSubtitle}>
@@ -186,54 +184,26 @@ const StudentLoginScreen = () => {
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <View style={styles.inputIcon}>
-                  <Icon name="email" size={18} color="#ef4444" />
+                  <Icon name="email" size={18} color="#006CB5" />
                 </View>
                 <TextInput
                   style={styles.textInput}
                   value={email}
                   onChangeText={setEmail}
-                  onFocus={() => setShowEmailSuggestions(true)}
                   placeholder="Enter email"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
                 />
-                <TouchableOpacity 
-                  style={styles.suggestionButton}
-                  onPress={() => setShowEmailSuggestions(!showEmailSuggestions)}
-                >
-                  <Icon name="arrow-drop-down" size={20} color="#9ca3af" />
-                </TouchableOpacity>
               </View>
-              
-              {/* Admin Credentials Suggestion */}
-              {showEmailSuggestions && (
-                <View style={styles.suggestionsContainer}>
-                  <TouchableOpacity 
-                    style={styles.suggestionItem}
-                    onPress={handleAdminCredentialsSelect}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.suggestionContent}>
-                      <View style={styles.suggestionIcon}>
-                        <Icon name="admin-panel-settings" size={16} color="#ef4444" />
-                      </View>
-                      <View style={styles.suggestionText}>
-                        <Text style={styles.suggestionEmail}>{adminCredentials.email}</Text>
-                        <Text style={styles.suggestionLabel}>Admin Account</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <View style={styles.inputIcon}>
-                  <Icon name="lock" size={18} color="#ef4444" />
+                  <Icon name="lock" size={18} color="#006CB5" />
                 </View>
                 <TextInput
                   style={styles.textInput}
@@ -279,7 +249,6 @@ const StudentLoginScreen = () => {
             </TouchableOpacity>
 
             </Animated.View>
-          </TouchableWithoutFeedback>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -366,7 +335,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginBottom: 15,
-    shadowColor: '#ef4444',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
@@ -412,9 +381,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#eff6ff',
     marginBottom: 12,
-    shadowColor: '#ef4444',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -507,13 +476,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loginButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#006CB5',
     borderRadius: 12,
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#ef4444',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

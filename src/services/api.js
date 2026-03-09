@@ -59,7 +59,8 @@ class ApiService {
         console.log(`📡 Testing: ${url}`);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        // Increase timeout to 15 seconds for Render (free tier can be slow to wake up)
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
         const response = await fetch(`${url}/health`, {
           method: 'GET',
@@ -74,6 +75,8 @@ class ApiService {
           this.workingUrl = url;
           this.baseURL = url;
           return url;
+        } else {
+          console.log(`⚠️ Response not OK: ${response.status}`);
         }
       } catch (error) {
         console.log(`❌ Failed: ${url} - ${error.message}`);

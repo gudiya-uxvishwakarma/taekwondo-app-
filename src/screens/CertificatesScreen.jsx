@@ -8,25 +8,34 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  Alert,
+  Linking,
+  Platform,
+  PermissionsAndroid,
+  Modal,
+  Image,
+  Dimensions,
 } from 'react-native';
+import RNFS from 'react-native-fs';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
-import CertificateCard from '../components/certificates/CertificateCard';
-import CertificateViewModal from './CertificateViewModal';
 import { useStudent } from '../context/StudentContext';
 import { useNavigation } from '../context/NavigationContext';
 import CertificateService from '../services/CertificateService';
 import API_CONFIG from '../config/api';
 import { handleApiError } from '../utils/helpers';
-import { Certificate } from '../models/Certificate';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CertificatesScreen = () => {
   const { student } = useStudent();
-  const { navigate } = useNavigation();
+  const { navigate, route } = useNavigation();
   
   // State management
   const [certificates, setCertificates] = useState([]);
-  const [viewCertificate, setViewCertificate] = useState(null);
+  const [viewingCertificate, setViewingCertificate] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -55,70 +64,328 @@ const CertificatesScreen = () => {
     loadCertificates();
   }, [student]);
 
+  // Handle view certificate - show in modal for images, open browser for PDFs
+  const handleViewCertificate = async (certificate) => {
+    try {
+      console.log('👁️ Viewing certificate:', certificate);
+      
+      if (!certificate.imageUrl) {
+        Alert.alert('No Certificate File', 'This certificate does not have an uploaded file.');
+        return;
+      }
+
+      const certificateUrl = certificate.imageUrl;
+      
+      // Convert relative URL to absolute URL
+      let fullUrl = certificateUrl;
+      if (certificateUrl.startsWith('/')) {
+        const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+        fullUrl = `${serverUrl}${certificateUrl}`;
+      }
+
+      console.log('👁️ Full certificate URL:', fullUrl);
+
+      // Determine if it's a PDF or image
+      const isPdf = certificateUrl.toLowerCase().endsWith('.pdf');
+      console.log('📄 File type:', isPdf ? 'PDF' : 'Image');
+
+      if (isPdf) {
+        // Open PDF in browser
+        console.log('📄 Opening PDF in browser');
+        try {
+          await Linking.openURL(fullUrl);
+          console.log('✅ PDF opened in browser');
+        } catch (error) {
+          console.error('❌ Failed to open PDF:', error);
+          Alert.alert('Error', 'Unable to open PDF. Please try downloading instead.');
+        }
+      } else {
+        // Show image in modal
+        setImageLoading(false);
+        setImageError(false);
+
+        setViewingCertificate({
+          url: fullUrl,
+          code: certificate.verificationCode || certificate.id,
+          title: certificate.title,
+          student: certificate.student,
+          isPdf: false,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error viewing certificate:', error);
+      Alert.alert('Error', 'Unable to view certificate');
+    }
+  };
+
+  // Request storage permission for Android
+  const requestStoragePermission = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    try {
+      if (Platform.Version >= 33) {
+        // Android 13+ doesn't need WRITE_EXTERNAL_STORAGE
+        return true;
+      }
+
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        {
+          title: 'Storage Permission',
+          message: 'App needs access to your storage to download certificates',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Permission error:', err);
+      return false;
+    }
+  };
+
+  // Handle certificate download
+  const handleDownloadCertificate = async (certificate) => {
+    try {
+      console.log('📥 Downloading certificate:', certificate);
+      
+      if (!certificate.imageUrl) {
+        Alert.alert('No Certificate File', 'This certificate does not have an uploaded file to download.');
+        return;
+      }
+
+      const certificateUrl = certificate.imageUrl;
+
+      // Request storage permission
+      const hasPermission = await requestStoragePermission();
+      if (!hasPermission) {
+        Alert.alert('Permission Denied', 'Storage permission is required to download certificates');
+        return;
+      }
+
+      // Convert relative URL to absolute URL
+      let fullUrl = certificateUrl;
+      if (certificateUrl.startsWith('/')) {
+        const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+        fullUrl = `${serverUrl}${certificateUrl}`;
+      }
+      
+      console.log('📥 Full certificate URL:', fullUrl);
+
+      // Get file extension
+      const fileExtension = certificateUrl.split('.').pop() || 'jpg';
+      const fileName = `certificate_${certificate.student.replace(/\s+/g, '_')}_${certificate.verificationCode || certificate.id}.${fileExtension}`;
+      
+      // Determine download path based on platform
+      let downloadPath;
+      if (Platform.OS === 'ios') {
+        downloadPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+      } else {
+        // For Android, use CachesDirectoryPath first (always works), then try to move to Downloads
+        downloadPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+      }
+
+      console.log('📁 Download path:', downloadPath);
+
+      // Show downloading alert
+      Alert.alert('Downloading', 'Please wait while we download your certificate...');
+
+      // Try all fallback URLs from API_CONFIG
+      let downloadSuccess = false;
+      let lastError = null;
+
+      // Try multiple possible paths for the certificate
+      const possiblePaths = [];
+      
+      if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
+        // Already a full URL (Cloudinary), use it directly
+        possiblePaths.push(certificateUrl);
+      } else if (certificateUrl.startsWith('/')) {
+        possiblePaths.push(certificateUrl);
+      } else {
+        // Try different possible folder structures
+        possiblePaths.push(`/uploads/${certificateUrl}`);
+        possiblePaths.push(`/${certificateUrl}`);
+        possiblePaths.push(`/uploads/certificates/${certificateUrl}`);
+        possiblePaths.push(`/uploads/students/${certificateUrl}`);
+        possiblePaths.push(`/public/uploads/${certificateUrl}`);
+      }
+
+      // If we have a full URL, try it directly first
+      if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
+        try {
+          console.log('🔄 Trying direct Cloudinary URL:', certificateUrl);
+
+          const downloadResult = await RNFS.downloadFile({
+            fromUrl: certificateUrl,
+            toFile: downloadPath,
+            background: true,
+            discretionary: true,
+            cacheable: true,
+            headers: {
+              'Accept': 'image/jpeg,image/png,image/jpg,application/pdf,*/*',
+            },
+            connectionTimeout: 15000,
+            readTimeout: 15000,
+            progress: (res) => {
+              if (res.contentLength > 0) {
+                const progress = (res.bytesWritten / res.contentLength) * 100;
+                console.log(`📊 Download progress: ${progress.toFixed(0)}%`);
+              }
+            },
+          }).promise;
+
+          if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
+            console.log('✅ Certificate downloaded successfully from Cloudinary');
+            downloadSuccess = true;
+          }
+        } catch (error) {
+          console.log('⚠️ Cloudinary direct download failed:', error.message);
+          lastError = error;
+        }
+      }
+
+      // If direct download failed or not a full URL, try with base URLs
+      if (!downloadSuccess) {
+        // Filter out full URLs from possiblePaths for fallback attempts
+        const relativePaths = possiblePaths.filter(p => !p.startsWith('http://') && !p.startsWith('https://'));
+        
+        for (const baseUrl of API_CONFIG.FALLBACK_URLS) {
+          for (const path of relativePaths) {
+            try {
+              // Construct URL
+              const tryUrl = `${baseUrl.replace('/api', '')}${path}`;
+              
+              console.log('🔄 Trying URL:', tryUrl);
+
+              // Build headers with authentication if token exists
+              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              const token = await AsyncStorage.getItem('auth_token');
+              
+              const headers = {
+                'Accept': 'image/jpeg,image/png,image/jpg,application/pdf,*/*',
+              };
+              
+              if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+              }
+
+              const downloadResult = await RNFS.downloadFile({
+                fromUrl: tryUrl,
+                toFile: downloadPath,
+                background: true,
+                discretionary: true,
+                cacheable: true,
+                headers: headers,
+                connectionTimeout: 15000,
+                readTimeout: 15000,
+                progress: (res) => {
+                  if (res.contentLength > 0) {
+                    const progress = (res.bytesWritten / res.contentLength) * 100;
+                    console.log(`📊 Download progress: ${progress.toFixed(0)}%`);
+                  }
+                },
+              }).promise;
+
+              console.log('✅ Download result:', downloadResult);
+
+              if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
+                console.log('✅ Certificate downloaded successfully from:', tryUrl);
+                downloadSuccess = true;
+                console.log('✅ Certificate downloaded successfully from:', tryUrl);
+                downloadSuccess = true;
+                break;
+              } else if (downloadResult.statusCode === 404) {
+                console.log('⚠️ File not found at:', tryUrl);
+                lastError = new Error('Certificate file not found on server');
+              } else {
+                console.log('⚠️ Download failed with status:', downloadResult.statusCode);
+                lastError = new Error(`Download failed with status code: ${downloadResult.statusCode}`);
+              }
+            } catch (urlError) {
+              console.log('⚠️ Failed to download from:', baseUrl.replace('/api', ''), urlError.message);
+              lastError = urlError;
+            }
+          }
+          
+          if (downloadSuccess) break;
+        }
+      }
+
+      if (!downloadSuccess) {
+        throw lastError || new Error('Certificate file not found on server');
+      }
+
+      // For Android, try to move to Downloads folder
+      if (Platform.OS === 'android') {
+        try {
+          const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+          await RNFS.moveFile(downloadPath, downloadsPath);
+          downloadPath = downloadsPath;
+          console.log('✅ Moved to Downloads folder:', downloadsPath);
+        } catch (moveError) {
+          console.log('⚠️ Could not move to Downloads, file saved in app cache:', moveError.message);
+        }
+      }
+
+      Alert.alert(
+        'Download Complete',
+        `Certificate has been saved successfully.\n\nFile: ${fileName}`,
+        [
+          { 
+            text: 'Open', 
+            onPress: () => {
+              Linking.openURL(`file://${downloadPath}`).catch(err => {
+                console.log('Cannot open file:', err);
+                Alert.alert('Info', 'File downloaded but cannot be opened automatically. Please check your Downloads folder.');
+              });
+            }
+          },
+          { text: 'OK' }
+        ]
+      );
+
+    } catch (error) {
+      console.error('❌ Error downloading certificate:', error);
+      Alert.alert(
+        'Download Failed',
+        error.message === 'Certificate file not found on server'
+          ? 'This certificate file is not available on the server. Please contact your administrator.'
+          : 'Unable to download certificate. Please check your internet connection and try again.'
+      );
+    }
+  };
+
+  // Load certificates on component mount
+  useEffect(() => {
+    loadCertificates();
+  }, [student]);
+
   // Load certificates from service
   const loadCertificates = useCallback(async () => {
     try {
       setError(null);
-      console.log('� Loarding certificates from backend...');
+      console.log('🔄 Loading certificates from backend...');
       
       const fetchedCertificates = await CertificateService.getCertificates();
       console.log('✅ Certificates loaded:', fetchedCertificates.length);
       
-      // Convert to Certificate objects with proper formatting
-      const certificateObjects = fetchedCertificates.map(cert => {
-        const certificateData = {
-          ...cert,
-          // Ensure proper formatting
-          title: cert.title || cert.achievementType || 'Certificate',
-          student: cert.student || cert.studentName || 'Student',
-          type: cert.type || cert.category || 'Achievement',
-          issueDate: cert.issueDate || cert.formattedIssueDate || new Date().toLocaleDateString(),
-          status: cert.status || 'Active',
-          verificationCode: cert.verificationCode || cert.id,
-          description: cert.description || `Certificate for ${cert.title || cert.achievementType}`,
-          instructor: cert.instructor || 'Academy Director',
-          year: cert.year || new Date().getFullYear()
-        };
-        return new Certificate(certificateData);
-      });
-      
-      setCertificates(certificateObjects);
+      // Keep certificates as-is with imageUrl
+      setCertificates(fetchedCertificates);
       
       // Update filter counts
-      const counts = updateFilterCounts(certificateObjects);
+      const counts = updateFilterCounts(fetchedCertificates);
       filterOptions.forEach(option => {
         option.count = counts[option.value] || 0;
       });
     } catch (err) {
       console.error('❌ Failed to load certificates:', err);
       setError(handleApiError(err));
-      
-      // Show user-friendly error but don't block the UI
-      console.log('🔄 Loading sample certificates as fallback...');
-      
-      // Load sample certificates as fallback
-      const sampleCertificates = [
-        {
-          id: 'CERT-4125362',
-          title: 'Yellow Belt',
-          student: 'Student Name',
-          type: 'Belt Promotion',
-          issueDate: '2024-01-15',
-          status: 'Active',
-          verificationCode: 'CERT001',
-          description: 'Yellow Belt Certificate',
-          instructor: 'Master Kim',
-          year: 2024
-        }
-      ].map(cert => new Certificate(cert));
-      
-      setCertificates(sampleCertificates);
-      
-      // Update filter counts for sample data
-      const counts = updateFilterCounts(sampleCertificates);
-      filterOptions.forEach(option => {
-        option.count = counts[option.value] || 0;
-      });
+      setCertificates([]);
     } finally {
       setIsLoading(false);
     }
@@ -213,11 +480,6 @@ const CertificatesScreen = () => {
     });
     
     return counts;
-  }, []);
-
-  // Event handlers
-  const handleViewCertificate = useCallback((cert) => {
-    setViewCertificate(cert);
   }, []);
 
   // Loading state
@@ -378,24 +640,134 @@ const CertificatesScreen = () => {
             </View>
           ) : (
             filteredCertificates.map((cert) => (
-              <CertificateCard
-                key={cert.id}
-                certificate={cert}
-                onView={handleViewCertificate}
-                testID={`certificate-card-${cert.id}`}
-              />
+              <View key={cert.id} style={styles.certificateCard}>
+                <View style={styles.certificateHeader}>
+                  <View style={styles.certificateIcon}>
+                    <Icon name="card-membership" size={24} color={colors.primary} type="MaterialIcons" />
+                  </View>
+                  <View style={styles.certificateInfo}>
+                    <Text style={styles.certificateTitle}>{cert.title || 'Certificate'}</Text>
+                    <Text style={styles.certificateStudent}>{cert.student || 'Student'}</Text>
+                    <Text style={styles.certificateType}>{cert.type || 'Achievement'}</Text>
+                    <Text style={styles.certificateDate}>Issued: {cert.issueDate}</Text>
+                    {cert.verificationCode && (
+                      <Text style={styles.certificateCode}>Code: {cert.verificationCode}</Text>
+                    )}
+                  </View>
+                </View>
+                
+                {cert.imageUrl && (
+                  <View style={styles.certificateActions}>
+                    <TouchableOpacity 
+                      style={styles.viewButton}
+                      onPress={() => handleViewCertificate(cert)}
+                    >
+                      <Icon name="visibility" size={16} color="#fff" type="MaterialIcons" />
+                      <Text style={styles.buttonText}>View</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.downloadButton}
+                      onPress={() => handleDownloadCertificate(cert)}
+                    >
+                      <Icon name="file-download" size={16} color="#fff" type="MaterialIcons" />
+                      <Text style={styles.buttonText}>Download</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                {!cert.imageUrl && (
+                  <View style={styles.noFileContainer}>
+                    <Text style={styles.noFileText}>No certificate file uploaded</Text>
+                  </View>
+                )}
+              </View>
             ))
           )}
         </View>
       </ScrollView>
 
       {/* Certificate View Modal */}
-      <CertificateViewModal
-        visible={viewCertificate !== null}
-        certificate={viewCertificate}
-        onClose={() => setViewCertificate(null)}
-        testID="certificate-view-modal"
-      />
+      {viewingCertificate && (
+        <Modal
+          visible={viewingCertificate !== null}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setViewingCertificate(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderInfo}>
+                <Text style={styles.modalTitle}>Certificate</Text>
+                {viewingCertificate && (
+                  <Text style={styles.modalSubtitle}>
+                    {viewingCertificate.student} - {viewingCertificate.title}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setViewingCertificate(null)}
+              >
+                <Icon name="close" size={24} color="#fff" type="MaterialIcons" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              {viewingCertificate && (
+                <>
+                  {imageLoading && (
+                    <View style={styles.imageLoadingContainer}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={styles.imageLoadingText}>Loading certificate...</Text>
+                    </View>
+                  )}
+
+                  {imageError && (
+                    <View style={styles.imageErrorContainer}>
+                      <Icon name="error-outline" size={48} color={colors.error} type="MaterialIcons" />
+                      <Text style={styles.imageErrorText}>Failed to load certificate</Text>
+                    </View>
+                  )}
+
+                  <Image
+                    source={{ 
+                      uri: viewingCertificate.url,
+                      headers: {
+                        'Accept': 'image/jpeg,image/png,image/jpg,*/*',
+                      },
+                    }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                    onLoadStart={() => {
+                      console.log('📸 Image loading started:', viewingCertificate.url);
+                      setImageLoading(true);
+                      setImageError(false);
+                    }}
+                    onLoadEnd={() => {
+                      console.log('✅ Image loaded successfully');
+                      setImageLoading(false);
+                    }}
+                    onError={(error) => {
+                      console.error('❌ Image load error:', error.nativeEvent.error);
+                      setImageLoading(false);
+                      setImageError(true);
+                    }}
+                  />
+                </>
+              )}
+            </View>
+
+            {viewingCertificate && (
+              <View style={styles.modalFooter}>
+                <Text style={styles.certificateCodeText}>
+                  Code: {viewingCertificate.code}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -706,6 +1078,178 @@ const styles = StyleSheet.create({
     color: colors.textMuted, 
     marginTop: spacing.xs,
     textAlign: 'center',
+  },
+  
+  // Certificate Card Styles
+  certificateCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  certificateHeader: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  certificateIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  certificateInfo: {
+    flex: 1,
+  },
+  certificateTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1a1a2e',
+    marginBottom: spacing.xs,
+  },
+  certificateStudent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  certificateType: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  certificateDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
+  certificateCode: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: 'monospace',
+  },
+  certificateActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  viewButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    gap: spacing.xs,
+  },
+  downloadButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.success,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    gap: spacing.xs,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  noFileContainer: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  noFileText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  modalHeaderInfo: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: spacing.xs,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalImage: {
+    width: SCREEN_WIDTH - 40,
+    height: '100%',
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageLoadingText: {
+    color: '#fff',
+    marginTop: spacing.md,
+    fontSize: 14,
+  },
+  imageErrorContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageErrorText: {
+    color: colors.error,
+    marginTop: spacing.md,
+    fontSize: 14,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  certificateCodeText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontFamily: 'monospace',
   },
 });
 

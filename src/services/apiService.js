@@ -8,10 +8,10 @@ class ApiService {
     this.timeout = API_CONFIG.TIMEOUT;
     this.workingUrl = null; // Cache for working URL
     this.fallbackUrls = API_CONFIG.FALLBACK_URLS || [
-      'https://taekwon-frontend.onrender.com/api',  // Render production URL - Primary
-      'http://192.168.1.48:5000/api',  // Local development IP - Fallback
+      'https://taekwondo-backend-j8w4.onrender.com/api',  // Render production URL - Primary
+      'https://taekwondo-backend-j8w4.onrender.com/api',  // Local development IP - Fallback
       'http://10.0.2.2:5000/api',      // Android emulator mapping - Fallback
-      'http://localhost:5000/api',     // Localhost (iOS simulator) - Fallback
+      'https://taekwondo-backend-j8w4.onrender.com/api',     // Localhost (iOS simulator) - Fallback
     ];
 
     // Create axios instance
@@ -119,7 +119,10 @@ class ApiService {
 
       return response.data;
     } catch (error) {
-      console.error('💥 API Request failed:', error);
+      // Only log in development, reduce noise
+      if (__DEV__) {
+        console.log('⚠️ API Request failed:', error.message);
+      }
       
       // If it's a network error, try to find working URL and retry once
       if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
@@ -152,7 +155,9 @@ class ApiService {
             console.log('✅ Retry successful with fallback URL');
             return retryResponse.data;
           } catch (retryError) {
-            console.log('❌ Retry also failed:', retryError.message);
+            if (__DEV__) {
+              console.log('⚠️ Retry also failed:', retryError.message);
+            }
           }
         }
       }

@@ -33,7 +33,7 @@ class CertificatePDFGenerator {
             max-width: 800px;
             margin: 0 auto;
             background: white;
-            border: 3px solid #ff0000;
+            border: 3px solid #006CB5;
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
@@ -47,7 +47,7 @@ class CertificatePDFGenerator {
             left: 0;
             right: 0;
             height: 60px;
-            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+            background: linear-gradient(135deg, #006CB5 0%, #004A7C 100%);
             border-radius: 17px 17px 0 0;
         }
         
@@ -57,7 +57,7 @@ class CertificatePDFGenerator {
             left: 20px;
             right: 20px;
             height: 20px;
-            background: #FFD700;
+            background: #0EA5E9;
             border-radius: 10px;
         }
         
@@ -70,7 +70,7 @@ class CertificatePDFGenerator {
         .certificate-title {
             font-size: 36px;
             font-weight: bold;
-            color: #ff0000;
+            color: #006CB5;
             letter-spacing: 3px;
             margin-bottom: 10px;
         }

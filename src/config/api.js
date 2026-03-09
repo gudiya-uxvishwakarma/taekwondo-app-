@@ -1,16 +1,16 @@
 // API Configuration
 const API_CONFIG = {
-  BASE_URL: 'https://taekwon-frontend.onrender.com/api', // Local development IP - Original
-  TIMEOUT: 10000,
+  BASE_URL: 'https://taekwondo-backend-j8w4.onrender.com/api', // Local network IP - Primary for development
+  TIMEOUT: 30000, // 30 seconds timeout
   FALLBACK_URLS: [
-    'https://taekwon-frontend.onrender.com/api',  // Local development IP - Primary
-    'https://taekwon-frontend.onrender.com/api',      // Android emulator mapping
-    'https://taekwon-frontend.onrender.com/api',  
-      // Localhost (for iOS simulator)
+    'https://taekwondo-backend-j8w4.onrender.com/api',  // Local network IP - Primary
+    'http://10.0.2.2:5000/api',      // Android emulator mapping
+    'https://taekwondo-backend-j8w4.onrender.com/api',     // Localhost
+    'https://taekwondo-backend-j8w4.onrender.com/api',  // Render production - Fallback
   ],
   ENDPOINTS: {
     AUTH: {
-      LOGIN: '/login', // Using the correct login endpoint
+      LOGIN: '/auth/login',
       REGISTER: '/login/register',
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',

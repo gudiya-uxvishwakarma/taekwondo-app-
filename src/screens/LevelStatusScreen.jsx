@@ -9,14 +9,27 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  Alert,
+  Linking,
+  Platform,
+  PermissionsAndroid,
+  Modal,
+  Image,
+  Dimensions,
+  SafeAreaView,
 } from 'react-native';
+import RNFS from 'react-native-fs';
 import StudentService from '../services/studentService';
 import API_CONFIG from '../config/api';
 import { useNavigation } from '../context/NavigationContext';
+import { useStudent } from '../context/StudentContext';
 import Icon from '../components/common/Icon';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LevelStatusScreen = () => {
   const { navigate } = useNavigation();
+  const { student } = useStudent();
   const [viewMode, setViewMode] = useState('Belt Levels'); // 'Belt Levels', 'Promotions', 'Upcoming'
   const [levelData, setLevelData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +37,11 @@ const LevelStatusScreen = () => {
   const [selectedBeltType, setSelectedBeltType] = useState('All Belts');
   const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewingCertificate, setViewingCertificate] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  console.log('👤 Logged in student:', student);
 
   // Level types
   const levelTypes = ['Belt Levels', 'Promotions', 'Upcoming'];
@@ -100,11 +118,32 @@ const LevelStatusScreen = () => {
           console.log('✅ Using mock promotion data:', mockPromotions.length, 'promotions');
         }
       } else if (viewMode === 'Upcoming') {
-        // Always use static data for Upcoming - no backend call
-        console.log('📊 Loading static upcoming tests data...');
-        const mockTests = getMockUpcomingTestsData();
-        setLevelData(mockTests);
-        console.log('✅ Using static test data:', mockTests.length, 'upcoming tests');
+        console.log('🔄 Loading upcoming tests from backend...');
+        console.log('🌐 Upcoming Tests API:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BELTS.TESTS}`);
+        
+        // Try to fetch upcoming tests from backend
+        let backendTests = [];
+        try {
+          const result = await StudentService.getBeltTests();
+          
+          if (result && result.status === 'success' && result.data && result.data.tests) {
+            backendTests = result.data.tests;
+            console.log('✅ Got', backendTests.length, 'upcoming tests from backend');
+          }
+        } catch (backendError) {
+          console.log('⚠️ Upcoming tests request failed:', backendError.message);
+          console.log('📊 No upcoming tests available');
+        }
+        
+        // Process upcoming tests from backend only
+        if (backendTests.length > 0) {
+          const processedTests = processBackendTestData(backendTests);
+          setLevelData(processedTests);
+          console.log('✅ Using backend test data:', processedTests.length, 'upcoming tests');
+        } else {
+          console.log('📊 No upcoming tests found in backend');
+          setLevelData([]);
+        }
       } else {
         // Fallback for any other view mode
         const mockBelts = getMockBeltLevelsData();
@@ -112,16 +151,13 @@ const LevelStatusScreen = () => {
       }
     } catch (error) {
       console.error('❌ Failed to load level data:', error);
-      // Always fallback to mock data based on view mode
+      // No fallback to mock data - show empty state
       if (viewMode === 'Promotions') {
         const mockPromotions = getMockPromotionsData();
         setLevelData(mockPromotions);
-      } else if (viewMode === 'Upcoming') {
-        const mockTests = getMockUpcomingTestsData();
-        setLevelData(mockTests);
       } else {
-        const mockBelts = getMockBeltLevelsData();
-        setLevelData(mockBelts);
+        // For Belt Levels and Upcoming Tests, show empty if backend fails
+        setLevelData([]);
       }
     } finally {
       setLoading(false);
@@ -134,9 +170,211 @@ const LevelStatusScreen = () => {
     setRefreshing(false);
   };
 
+  // Helper function to get belt color information by belt name
+  const getBeltColorInfo = (beltName) => {
+    if (!beltName) {
+      console.log('⚠️ No belt name provided');
+      return { color: '#CCCCCC', isStripe: false, stripeColors: null, textColor: '#333', borderColor: '#999999' };
+    }
+    
+    const name = beltName.toLowerCase().trim();
+    console.log('🎨 Getting color for belt:', beltName, '(normalized:', name + ')');
+    
+    // Define belt color mappings with darker shades
+    const beltColors = {
+      // White belt variations
+      'white belt': { color: '#FFFFFF', borderColor: '#E5E7EB', textColor: '#333333' },
+      'white': { color: '#FFFFFF', borderColor: '#E5E7EB', textColor: '#333333' },
+      
+      // White/Yellow stripe variations - darker gold
+      'white / yellow stripe belt': { 
+        isStripe: true, 
+        stripeColors: { color1: '#FFFFFF', color2: '#D4AF37' },
+        borderColor: '#333',
+        textColor: '#333333'
+      },
+      'white / yellow stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#FFFFFF', color2: '#D4AF37' },
+        borderColor: '#333',
+        textColor: '#333333'
+      },
+      'white-yellow stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#FFFFFF', color2: '#D4AF37' },
+        borderColor: '#333',
+        textColor: '#333333'
+      },
+      
+      // Yellow belt variations - darker gold
+      'yellow belt': { color: '#D4AF37', borderColor: '#D4AF37', textColor: '#333333' },
+      'yellow': { color: '#D4AF37', borderColor: '#D4AF37', textColor: '#333333' },
+      
+      // Yellow/Green stripe variations - darker shades
+      'yellow / green stripe belt': { 
+        isStripe: true, 
+        stripeColors: { color1: '#D4AF37', color2: '#006400' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      'yellow / green stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#D4AF37', color2: '#006400' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      
+      // Orange belt - darker orange
+      'orange belt': { color: '#CC5500', borderColor: '#CC5500', textColor: '#FFFFFF' },
+      'orange': { color: '#CC5500', borderColor: '#CC5500', textColor: '#FFFFFF' },
+      
+      // Green belt variations - dark green
+      'green belt': { color: '#006400', borderColor: '#006400', textColor: '#FFFFFF' },
+      'green': { color: '#006400', borderColor: '#006400', textColor: '#FFFFFF' },
+      
+      // Green/Blue stripe variations - dark shades
+      'green / blue stripe belt': { 
+        isStripe: true, 
+        stripeColors: { color1: '#006400', color2: '#00008B' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      'green / blue stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#006400', color2: '#00008B' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      
+      // Blue belt variations - dark blue
+      'blue belt': { color: '#00008B', borderColor: '#00008B', textColor: '#FFFFFF' },
+      'blue': { color: '#00008B', borderColor: '#00008B', textColor: '#FFFFFF' },
+      
+      // Blue/Purple stripe variations - dark shades
+      'blue / purple stripe belt': { 
+        isStripe: true, 
+        stripeColors: { color1: '#00008B', color2: '#4B0082' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      'blue / purple stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#00008B', color2: '#4B0082' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      
+      // Purple belt - darker purple
+      'purple belt': { color: '#4B0082', borderColor: '#4B0082', textColor: '#FFFFFF' },
+      'purple': { color: '#4B0082', borderColor: '#4B0082', textColor: '#FFFFFF' },
+      
+      // Brown belt - dark brown
+      'brown belt': { color: '#654321', borderColor: '#654321', textColor: '#FFFFFF' },
+      'brown': { color: '#654321', borderColor: '#654321', textColor: '#FFFFFF' },
+      
+      // Purple/Black stripe variations (replacing red/black)
+      'purple / black stripe belt': { 
+        isStripe: true, 
+        stripeColors: { color1: '#4B0082', color2: '#000000' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      'purple / black stripe': { 
+        isStripe: true, 
+        stripeColors: { color1: '#4B0082', color2: '#000000' },
+        borderColor: '#333',
+        textColor: '#FFFFFF'
+      },
+      
+      // Black belt variations
+      'black belt': { color: '#000000', borderColor: '#000000', textColor: '#FFFFFF' },
+      'black belt 1st dan': { color: '#000000', borderColor: '#000000', textColor: '#FFFFFF' },
+      'black belt 2nd dan': { color: '#000000', borderColor: '#000000', textColor: '#FFFFFF' },
+      'black belt 3rd dan': { color: '#000000', borderColor: '#000000', textColor: '#FFFFFF' },
+      'black': { color: '#000000', borderColor: '#000000', textColor: '#FFFFFF' }
+    };
+    
+    // Try exact match first
+    if (beltColors[name]) {
+      console.log('✅ Exact match found:', beltColors[name]);
+      return { isStripe: false, ...beltColors[name] };
+    }
+    
+    // Try partial matches
+    for (const [key, value] of Object.entries(beltColors)) {
+      if (name.includes(key) || key.includes(name)) {
+        console.log('✅ Partial match found:', key, value);
+        return { isStripe: false, ...value };
+      }
+    }
+    
+    console.log('⚠️ No match found, using default gray');
+    // Default gray for unknown belts
+    return { color: '#CCCCCC', borderColor: '#999999', textColor: '#333333', isStripe: false };
+  };
+
   // Process backend belt data
   const processBackendBeltData = (beltsFromBackend) => {
     console.log('🔄 Processing belt levels from backend:', beltsFromBackend.length);
+    
+    // Helper function to determine if a color is light or dark
+    const isLightColor = (hexColor) => {
+      if (!hexColor) return true;
+      
+      // Remove # if present
+      const hex = hexColor.replace('#', '');
+      
+      // Convert to RGB
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Calculate luminance
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      
+      // Return true if light (luminance > 0.5)
+      return luminance > 0.5;
+    };
+    
+    // Helper function to detect if belt is a stripe belt
+    const isStripeBelt = (colorName) => {
+      return colorName && colorName.includes('-stripe');
+    };
+    
+    // Helper function to get stripe colors from belt color name
+    const getStripeColors = (colorName, primaryHex, stripeHex) => {
+      // If stripeColor is provided from backend, use it
+      if (stripeHex) {
+        return {
+          color1: primaryHex,
+          color2: stripeHex
+        };
+      }
+      
+      // Otherwise, parse from color name - using darker shades
+      const colorMap = {
+        'white': '#FFFFFF',
+        'yellow': '#D4AF37',  // Darker gold/yellow
+        'green': '#006400',   // Dark green
+        'blue': '#00008B',    // Dark blue
+        'purple': '#4B0082',  // Dark purple (replacing red)
+        'black': '#000000'
+      };
+      
+      if (colorName.includes('white-yellow')) {
+        return { color1: colorMap.white, color2: colorMap.yellow };
+      } else if (colorName.includes('yellow-green')) {
+        return { color1: colorMap.yellow, color2: colorMap.green };
+      } else if (colorName.includes('green-blue')) {
+        return { color1: colorMap.green, color2: colorMap.blue };
+      } else if (colorName.includes('blue-purple')) {
+        return { color1: colorMap.blue, color2: colorMap.purple };
+      } else if (colorName.includes('purple-black')) {
+        return { color1: colorMap.purple, color2: colorMap.black };
+      }
+      
+      return null;
+    };
     
     return beltsFromBackend.map(belt => {
       // Determine status based on belt level and students
@@ -149,15 +387,23 @@ const LevelStatusScreen = () => {
       const maxStudents = 30; // Assume max 30 students per belt
       const progress = Math.min((belt.students / maxStudents) * 100, 100);
       
-      console.log(`🥋 Belt: ${belt.name}, Level: ${belt.level}, Students: ${belt.students}, Status: ${status}`);
+      const beltColor = belt.hex || '#FFFFFF';
+      const isLight = isLightColor(beltColor);
+      const isStripe = isStripeBelt(belt.color);
+      const stripeColors = isStripe ? getStripeColors(belt.color, belt.hex, belt.stripeColor) : null;
+      
+      console.log(`🥋 Belt: ${belt.name}, Level: ${belt.level}, Color: ${beltColor}, IsStripe: ${isStripe}`);
       
       return {
         id: belt._id || belt.id,
         type: 'belt',
         name: belt.name || 'Unknown Belt',
         level: belt.level || 1,
-        color: belt.hex || '#FFFFFF',
-        borderColor: belt.hex ? belt.hex : '#E5E7EB',
+        color: beltColor,
+        borderColor: isLight ? '#E5E7EB' : beltColor,
+        textColor: isLight ? '#333333' : '#FFFFFF', // Dark text for light colors, white text for dark colors
+        isStripeBelt: isStripe,
+        stripeColors: stripeColors,
         date: belt.createdAt ? new Date(belt.createdAt).toLocaleDateString('en-GB', {
           day: '2-digit',
           month: 'short',
@@ -202,7 +448,14 @@ const LevelStatusScreen = () => {
   const processBackendTestData = (testsFromBackend) => {
     console.log('🔄 Processing upcoming tests from backend:', testsFromBackend.length);
     
-    return testsFromBackend.map(test => {
+    // Remove duplicates based on _id or id
+    const uniqueTests = testsFromBackend.filter((test, index, self) =>
+      index === self.findIndex((t) => (t._id || t.id) === (test._id || test.id))
+    );
+    
+    console.log('🔄 After removing duplicates:', uniqueTests.length);
+    
+    return uniqueTests.map(test => {
       console.log(`📝 Test: ${test.studentName}, Testing for: ${test.testingFor}, Date: ${test.testDate}`);
       
       return {
@@ -216,8 +469,8 @@ const LevelStatusScreen = () => {
           month: 'short',
           year: 'numeric'
         }) : 'N/A',
-        readiness: test.readiness || 0,
-        status: test.status || 'scheduled',
+        certificateCode: test.certificateCode || 'N/A',
+        certificateUrl: test.certificateUrl || test.certificateFile || null,
         notes: test.notes || ''
       };
     });
@@ -231,10 +484,11 @@ const LevelStatusScreen = () => {
         type: 'upcoming',
         studentName: 'Alex Chen',
         currentBelt: 'Yellow Belt',
-        testingFor: 'Orange',
+        testingFor: 'Orange Belt',
         date: '2/11/2026',
-        readiness: 45,
         status: 'scheduled',
+        certificateCode: 'CERT-2026-001',
+        certificateUrl: 'https://example.com/certificates/cert-001.pdf',
         notes: 'Needs more practice on basic techniques.'
       },
       {
@@ -244,8 +498,9 @@ const LevelStatusScreen = () => {
         currentBelt: 'White Belt',
         testingFor: 'Yellow Belt',
         date: '4/5/2026',
-        readiness: 70,
         status: 'scheduled',
+        certificateCode: 'CERT-2026-002',
+        certificateUrl: 'https://example.com/certificates/cert-002.pdf',
         notes: 'Good progress, keep practicing forms.'
       },
       {
@@ -255,8 +510,9 @@ const LevelStatusScreen = () => {
         currentBelt: 'Yellow Belt',
         testingFor: 'Orange Belt',
         date: '4/10/2026',
-        readiness: 82,
         status: 'scheduled',
+        certificateCode: 'CERT-2026-003',
+        certificateUrl: 'https://example.com/certificates/cert-003.pdf',
         notes: 'Excellent technique, almost ready for test.'
       },
       {
@@ -265,9 +521,10 @@ const LevelStatusScreen = () => {
         studentName: 'John Smith',
         currentBelt: 'White Belt',
         testingFor: 'Yellow Belt',
-        date: '5/5/2111',
-        readiness: 20,
+        date: '5/5/2026',
         status: 'scheduled',
+        certificateCode: 'CERT-2026-004',
+        certificateUrl: 'https://example.com/certificates/cert-004.pdf',
         notes: 'Just started, needs significant practice.'
       }
     ];
@@ -340,15 +597,19 @@ const LevelStatusScreen = () => {
   // Mock belt levels data - Simplified
   const getMockBeltLevelsData = () => {
     return [
-      { id: 1, type: 'belt', name: 'White Belt', level: 1, color: '#FFFFFF', borderColor: '#E5E7EB', date: '15 Jan 2024', status: 'Achieved', progress: 100, requirements: ['Basic Stances', 'Basic Blocks'], students: 25, beltType: 'Colored Belt' },
-      { id: 2, type: 'belt', name: 'Yellow Belt', level: 2, color: '#F59E0B', borderColor: '#D97706', date: '20 Feb 2024', status: 'Achieved', progress: 100, requirements: ['Taegeuk Il Jang', 'Front Kick'], students: 20, beltType: 'Colored Belt' },
-      { id: 3, type: 'belt', name: 'Green Belt', level: 3, color: '#10B981', borderColor: '#059669', date: '10 Mar 2024', status: 'Achieved', progress: 100, requirements: ['Taegeuk Sam Jang', 'Side Kick'], students: 15, beltType: 'Colored Belt' },
-      { id: 4, type: 'belt', name: 'Blue Belt', level: 4, color: '#3B82F6', borderColor: '#2563EB', date: '05 Apr 2024', status: 'Available', progress: 75, requirements: ['Taegeuk Sa Jang', 'Hook Kick'], students: 12, beltType: 'Colored Belt' },
-      { id: 5, type: 'belt', name: 'Purple Belt', level: 5, color: '#8B5CF6', borderColor: '#7C3AED', date: '15 May 2024', status: 'Available', progress: 45, requirements: ['Taegeuk Oh Jang', 'Spinning Kicks'], students: 10, beltType: 'Colored Belt' },
-      { id: 6, type: 'belt', name: 'Brown Belt', level: 6, color: '#A3A3A3', borderColor: '#737373', date: '12 Jun 2024', status: 'Available', progress: 30, requirements: ['Taegeuk Yuk Jang', 'Jump Kicks'], students: 8, beltType: 'Colored Belt' },
-      { id: 7, type: 'belt', name: 'Black Belt 1st Dan', level: 7, color: '#1F2937', borderColor: '#111827', date: '25 Jul 2024', status: 'Available', progress: 20, requirements: ['Koryo', 'All Techniques Mastery'], students: 5, beltType: 'Black Belt' },
-      { id: 8, type: 'belt', name: 'Black Belt 2nd Dan', level: 8, color: '#1F2937', borderColor: '#111827', date: '25 Aug 2024', status: 'Available', progress: 10, requirements: ['Keumgang', 'Leadership Skills'], students: 3, beltType: 'Black Belt' },
-      { id: 9, type: 'belt', name: 'Black Belt 3rd Dan', level: 9, color: '#1F2937', borderColor: '#111827', date: '20 Sep 2024', status: 'Available', progress: 5, requirements: ['Taebaek', 'Teaching Practice'], students: 2, beltType: 'Black Belt' }
+      { id: 1, type: 'belt', name: 'White Belt', level: 1, color: '#FFFFFF', borderColor: '#E5E7EB', textColor: '#333333', isStripeBelt: false, date: '15 Jan 2024', status: 'Achieved', progress: 100, requirements: ['Basic Stances', 'Basic Blocks'], students: 25, beltType: 'Colored Belt' },
+      { id: 2, type: 'belt', name: 'White / Yellow Stripe Belt', level: 2, color: '#FFFFFF', borderColor: '#333', textColor: '#333333', isStripeBelt: true, stripeColors: { color1: '#FFFFFF', color2: '#FFD700' }, date: '10 Feb 2024', status: 'Achieved', progress: 100, requirements: ['Chon-Ji pattern introduction'], students: 22, beltType: 'Colored Belt' },
+      { id: 3, type: 'belt', name: 'Yellow Belt', level: 3, color: '#FFD700', borderColor: '#FFD700', textColor: '#333333', isStripeBelt: false, date: '20 Feb 2024', status: 'Achieved', progress: 100, requirements: ['Taegeuk Il Jang', 'Front Kick'], students: 20, beltType: 'Colored Belt' },
+      { id: 4, type: 'belt', name: 'Yellow / Green Stripe Belt', level: 4, color: '#FFD700', borderColor: '#333', textColor: '#333333', isStripeBelt: true, stripeColors: { color1: '#FFD700', color2: '#10B981' }, date: '05 Mar 2024', status: 'Achieved', progress: 100, requirements: ['Dan-Gun pattern introduction'], students: 18, beltType: 'Colored Belt' },
+      { id: 5, type: 'belt', name: 'Green Belt', level: 5, color: '#10B981', borderColor: '#10B981', textColor: '#FFFFFF', isStripeBelt: false, date: '10 Mar 2024', status: 'Achieved', progress: 100, requirements: ['Taegeuk Sam Jang', 'Side Kick'], students: 15, beltType: 'Colored Belt' },
+      { id: 6, type: 'belt', name: 'Green / Blue Stripe Belt', level: 6, color: '#10B981', borderColor: '#333', textColor: '#FFFFFF', isStripeBelt: true, stripeColors: { color1: '#10B981', color2: '#3B82F6' }, date: '25 Mar 2024', status: 'Available', progress: 85, requirements: ['Do-San pattern introduction'], students: 13, beltType: 'Colored Belt' },
+      { id: 7, type: 'belt', name: 'Blue Belt', level: 7, color: '#3B82F6', borderColor: '#3B82F6', textColor: '#FFFFFF', isStripeBelt: false, date: '05 Apr 2024', status: 'Available', progress: 75, requirements: ['Taegeuk Sa Jang', 'Hook Kick'], students: 12, beltType: 'Colored Belt' },
+      { id: 8, type: 'belt', name: 'Blue / Purple Stripe Belt', level: 8, color: '#3B82F6', borderColor: '#333', textColor: '#FFFFFF', isStripeBelt: true, stripeColors: { color1: '#3B82F6', color2: '#7C3AED' }, date: '20 Apr 2024', status: 'Available', progress: 60, requirements: ['Won-Hyo pattern introduction'], students: 10, beltType: 'Colored Belt' },
+      { id: 9, type: 'belt', name: 'Purple Belt', level: 9, color: '#7C3AED', borderColor: '#7C3AED', textColor: '#FFFFFF', isStripeBelt: false, date: '20 Jul 2024', status: 'Available', progress: 25, requirements: ['Taegeuk Chil Jang', 'Advanced Techniques'], students: 6, beltType: 'Colored Belt' },
+      { id: 10, type: 'belt', name: 'Purple / Black Stripe Belt', level: 10, color: '#7C3AED', borderColor: '#333', textColor: '#FFFFFF', isStripeBelt: true, stripeColors: { color1: '#7C3AED', color2: '#1F2937' }, date: '10 Aug 2024', status: 'Available', progress: 15, requirements: ['Yul-Gok pattern, black belt preparation'], students: 4, beltType: 'Colored Belt' },
+      { id: 11, type: 'belt', name: 'Black Belt 1st Dan', level: 11, color: '#1F2937', borderColor: '#1F2937', textColor: '#FFFFFF', isStripeBelt: false, date: '25 Aug 2024', status: 'Available', progress: 20, requirements: ['Koryo', 'All Techniques Mastery'], students: 5, beltType: 'Black Belt' },
+      { id: 12, type: 'belt', name: 'Black Belt 2nd Dan', level: 12, color: '#1F2937', borderColor: '#1F2937', textColor: '#FFFFFF', isStripeBelt: false, date: '25 Sep 2024', status: 'Available', progress: 10, requirements: ['Keumgang', 'Leadership Skills'], students: 3, beltType: 'Black Belt' },
+      { id: 13, type: 'belt', name: 'Black Belt 3rd Dan', level: 13, color: '#1F2937', borderColor: '#1F2937', textColor: '#FFFFFF', isStripeBelt: false, date: '20 Oct 2024', status: 'Available', progress: 5, requirements: ['Taebaek', 'Teaching Practice'], students: 2, beltType: 'Black Belt' }
     ];
   };
 
@@ -364,7 +625,8 @@ const LevelStatusScreen = () => {
     } else if (viewMode === 'Promotions') {
       return getMockPromotionsData();
     } else if (viewMode === 'Upcoming') {
-      return getMockUpcomingTestsData();
+      // No mock data for upcoming tests - return empty array
+      return [];
     }
     
     return getMockBeltLevelsData();
@@ -376,41 +638,364 @@ const LevelStatusScreen = () => {
     navigate('Dashboard');
   };
 
+  // Handle view certificate - show in modal for images, open browser for PDFs
+  const handleViewCertificate = async (certificateUrl, certificateCode, testData) => {
+    try {
+      console.log('👁️ Viewing certificate:', certificateUrl);
+      
+      if (!certificateUrl) {
+        Alert.alert('Error', 'Certificate URL not available');
+        return;
+      }
+
+      // Try multiple possible paths for the certificate
+      const possibleUrls = [];
+      
+      if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
+        possibleUrls.push(certificateUrl);
+      } else {
+        const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+        
+        if (certificateUrl.startsWith('/')) {
+          possibleUrls.push(`${serverUrl}${certificateUrl}`);
+        } else {
+          // Try different possible folder structures
+          possibleUrls.push(`${serverUrl}/uploads/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/uploads/belt-exams/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/uploads/certificates/${certificateUrl}`);
+        }
+      }
+
+      // Use the first URL for now (we'll try others if this fails)
+      const fullUrl = possibleUrls[0];
+      console.log('👁️ Full certificate URL:', fullUrl);
+
+      // Determine if it's a PDF or image
+      const isPdf = certificateUrl.toLowerCase().endsWith('.pdf');
+      console.log('📄 File type:', isPdf ? 'PDF' : 'Image');
+
+      if (isPdf) {
+        // Open PDF in browser - try all possible URLs
+        console.log('📄 Opening PDF in browser');
+        let opened = false;
+        
+        for (const url of possibleUrls) {
+          try {
+            await Linking.openURL(url);
+            console.log('✅ PDF opened from:', url);
+            opened = true;
+            break;
+          } catch (error) {
+            console.log('⚠️ Failed to open PDF from:', url);
+          }
+        }
+        
+        if (!opened) {
+          Alert.alert('Error', 'Unable to open PDF. The file may not exist on the server. Please try downloading instead.');
+        }
+      } else {
+        // Show image in modal
+        setImageLoading(false);
+        setImageError(false);
+
+        setViewingCertificate({
+          url: fullUrl,
+          code: certificateCode,
+          studentName: testData.studentName,
+          testingFor: testData.testingFor,
+          isPdf: false,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error viewing certificate:', error);
+      Alert.alert('Error', 'Unable to view certificate');
+    }
+  };
+
+  // Request storage permission for Android
+  const requestStoragePermission = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    try {
+      if (Platform.Version >= 33) {
+        // Android 13+ doesn't need WRITE_EXTERNAL_STORAGE
+        return true;
+      }
+
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        {
+          title: 'Storage Permission',
+          message: 'App needs access to your storage to download certificates',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Permission error:', err);
+      return false;
+    }
+  };
+
+  // Handle certificate download
+  const handleDownloadCertificate = async (certificateUrl, certificateCode) => {
+    try {
+      console.log('📥 Downloading certificate:', certificateUrl);
+      
+      if (!certificateUrl) {
+        Alert.alert('Error', 'Certificate URL not available');
+        return;
+      }
+
+      // Request storage permission
+      const hasPermission = await requestStoragePermission();
+      if (!hasPermission) {
+        Alert.alert('Permission Denied', 'Storage permission is required to download certificates');
+        return;
+      }
+
+      // Get authentication token
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const token = await AsyncStorage.getItem('auth_token');
+      console.log('🔑 Auth token available:', !!token);
+
+      // Use the SAME URL construction logic as handleViewCertificate
+      const possibleUrls = [];
+      
+      if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
+        possibleUrls.push(certificateUrl);
+      } else {
+        const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+        
+        if (certificateUrl.startsWith('/')) {
+          // Direct path - try as-is first
+          possibleUrls.push(`${serverUrl}${certificateUrl}`);
+          
+          // Also try through the API download endpoint if it's a certificate
+          const filename = certificateUrl.split('/').pop();
+          possibleUrls.push(`${API_CONFIG.BASE_URL}/certificates/download?file=${filename}`);
+        } else {
+          // Try different possible folder structures - SAME ORDER as view function
+          possibleUrls.push(`${serverUrl}/uploads/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/uploads/belt-exams/${certificateUrl}`);
+          possibleUrls.push(`${serverUrl}/uploads/certificates/${certificateUrl}`);
+          
+          // Also try through the API download endpoint
+          possibleUrls.push(`${API_CONFIG.BASE_URL}/certificates/download?file=${certificateUrl}`);
+        }
+      }
+
+      // Get file extension
+      const fileExtension = certificateUrl.split('.').pop() || 'jpg';
+      const fileName = `certificate_${certificateCode || Date.now()}.${fileExtension}`;
+      
+      // Determine download path based on platform
+      let downloadPath;
+      if (Platform.OS === 'ios') {
+        downloadPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+      } else {
+        // For Android, use CachesDirectoryPath first (always works), then try to move to Downloads
+        downloadPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+      }
+
+      console.log('📁 Download path:', downloadPath);
+
+      // Show downloading alert
+      Alert.alert('Downloading', 'Please wait while we download your certificate...');
+
+      // Try all possible URLs
+      let downloadSuccess = false;
+      let lastError = null;
+
+      for (const tryUrl of possibleUrls) {
+        try {
+          console.log('🔄 Trying URL:', tryUrl);
+
+          // Build headers with authentication if token exists
+          const headers = {
+            'Accept': 'image/jpeg,image/png,image/jpg,application/pdf,*/*',
+          };
+          
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const downloadResult = await RNFS.downloadFile({
+            fromUrl: tryUrl,
+            toFile: downloadPath,
+            background: true,
+            discretionary: true,
+            cacheable: true,
+            headers: headers,
+            connectionTimeout: 15000,
+            readTimeout: 15000,
+            progress: (res) => {
+              if (res.contentLength > 0) {
+                const progress = (res.bytesWritten / res.contentLength) * 100;
+                console.log(`📊 Download progress: ${progress.toFixed(0)}%`);
+              }
+            },
+          }).promise;
+
+          console.log('✅ Download result:', downloadResult);
+
+          if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
+            console.log('✅ Certificate downloaded successfully from:', tryUrl);
+            downloadSuccess = true;
+            break;
+          } else if (downloadResult.statusCode === 404) {
+            console.log('⚠️ File not found at:', tryUrl);
+            lastError = new Error('Certificate file not found on server');
+          } else {
+            console.log('⚠️ Download failed with status:', downloadResult.statusCode);
+            lastError = new Error(`Download failed with status code: ${downloadResult.statusCode}`);
+          }
+        } catch (urlError) {
+          console.log('⚠️ Failed to download from:', tryUrl, urlError.message);
+          lastError = urlError;
+        }
+      }
+
+      if (!downloadSuccess) {
+        throw lastError || new Error('Certificate file not found on server');
+      }
+
+      // For Android, try to move to Downloads folder
+      if (Platform.OS === 'android') {
+        try {
+          const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+          await RNFS.moveFile(downloadPath, downloadsPath);
+          downloadPath = downloadsPath;
+          console.log('✅ Moved to Downloads folder:', downloadsPath);
+        } catch (moveError) {
+          console.log('⚠️ Could not move to Downloads, file saved in app cache:', moveError.message);
+        }
+      }
+
+      Alert.alert(
+        'Download Complete',
+        `Certificate has been saved successfully.\n\nFile: ${fileName}`,
+        [
+          { 
+            text: 'Open', 
+            onPress: () => {
+              Linking.openURL(`file://${downloadPath}`).catch(err => {
+                console.log('Cannot open file:', err);
+                Alert.alert('Info', 'File downloaded but cannot be opened automatically. Please check your Downloads folder.');
+              });
+            }
+          },
+          { text: 'OK' }
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Error downloading certificate:', error);
+      
+      Alert.alert(
+        'Download Failed',
+        error.message === 'Certificate file not found on server'
+          ? 'This certificate file is not available on the server. Please contact your administrator.'
+          : 'Unable to download certificate. Please check your internet connection and try again.'
+      );
+    }
+  };
+
   // Simplified filter - only by view mode
   const filteredLevels = beltLevelsData.filter(item => {
     if (viewMode === 'Belt Levels') {
-      // Apply belt type filter
-      if (selectedBeltType !== 'All Belts') {
-        if (selectedBeltType === 'Colored Belts' && item.beltType !== 'Colored Belt') return false;
-        if (selectedBeltType === 'Black Belts' && item.beltType !== 'Black Belt') return false;
-      }
-      
-      // Apply status filter
-      if (selectedStatus !== 'All Status') {
-        if (selectedStatus === 'Active' && item.status !== 'Active') return false;
-        if (selectedStatus === 'Inactive' && item.status !== 'Inactive') return false;
-        if (selectedStatus === 'Testing Ready' && item.progress < 80) return false;
-      }
-      
-      // Apply search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        if (!item.name.toLowerCase().includes(query)) return false;
-      }
-      
+      // Show all belt levels without any filters
       return item.type === 'belt';
     }
-    if (viewMode === 'Promotions') return item.type === 'promotion';
-    if (viewMode === 'Upcoming') return item.type === 'upcoming';
+    
+    // For Promotions and Upcoming Tests, filter by logged-in student
+    if (viewMode === 'Promotions' || viewMode === 'Upcoming') {
+      // Get logged-in student info
+      const studentName = student?.name || student?.fullName || '';
+      const studentEmail = student?.email || '';
+      const studentId = student?.id || student?.studentId || '';
+      
+      console.log('🔍 Filtering for student:', {
+        name: studentName,
+        email: studentEmail,
+        id: studentId
+      });
+      
+      console.log('🔍 Checking item:', {
+        itemStudent: item.studentName,
+        itemEmail: item.studentEmail,
+        itemId: item.studentId
+      });
+      
+      // If no student is logged in, show all (fallback)
+      if (!studentName && !studentEmail) {
+        console.log('⚠️ No student logged in, showing all data');
+        if (viewMode === 'Promotions') return item.type === 'promotion';
+        if (viewMode === 'Upcoming') return item.type === 'upcoming';
+        return true;
+      }
+      
+      // Match by student name (case-insensitive, flexible matching)
+      let matchesByName = false;
+      if (studentName && item.studentName) {
+        const normalizedStudentName = studentName.toLowerCase().trim();
+        const normalizedItemName = item.studentName.toLowerCase().trim();
+        
+        // Check if either name contains the other, or if they match exactly
+        matchesByName = 
+          normalizedItemName.includes(normalizedStudentName) ||
+          normalizedStudentName.includes(normalizedItemName) ||
+          normalizedItemName === normalizedStudentName;
+        
+        // Also check first name match (split by space and compare first word)
+        if (!matchesByName) {
+          const studentFirstName = normalizedStudentName.split(' ')[0];
+          const itemFirstName = normalizedItemName.split(' ')[0];
+          matchesByName = studentFirstName === itemFirstName && studentFirstName.length > 2;
+        }
+      }
+      
+      // Match by email
+      const matchesByEmail = studentEmail && item.studentEmail && 
+        item.studentEmail.toLowerCase() === studentEmail.toLowerCase();
+      
+      // Match by ID
+      const matchesById = studentId && item.studentId && 
+        item.studentId === studentId;
+      
+      const matchesStudent = matchesByName || matchesByEmail || matchesById;
+      
+      console.log('🔍 Match result:', {
+        matchesByName,
+        matchesByEmail,
+        matchesById,
+        finalMatch: matchesStudent
+      });
+      
+      if (!matchesStudent) {
+        return false;
+      }
+      
+      if (viewMode === 'Promotions') return item.type === 'promotion';
+      if (viewMode === 'Upcoming') return item.type === 'upcoming';
+    }
+    
     return true;
   });
 
   // Loading state
   if (loading) {
     return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="rgba(251, 247, 246, 1)" />
-        <View style={styles.header}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="#006CB5" translucent={false} />
+          <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Icon name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
@@ -420,18 +1005,20 @@ const LevelStatusScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e74c3c" />
+          <ActivityIndicator size="large" color="#006CB5" />
           <Text style={styles.loadingText}>Loading level data...</Text>
         </View>
       </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="rgba(240, 234, 233, 1)" />
-      
-      {/* Header */}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#006CB5" translucent={false} />
+        
+        {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Icon name="arrow-back" size={24} color="#fff" />
@@ -453,21 +1040,13 @@ const LevelStatusScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['rgba(239, 32, 9, 1)']}
-            tintColor="#e74c3c"
+            colors={['#006CB5']}
+            tintColor="#006CB5"
           />
         }
       >
         {/* Header Section with Record Promotion Button */}
-        {viewMode === 'Promotions' && (
-          <View style={styles.promotionsHeader}>
-            <Text style={styles.sectionTitle}>Recent Promotions</Text>
-            <TouchableOpacity style={styles.recordButton}>
-              <Icon name="add" size={20} color="#fff" />
-              <Text style={styles.recordButtonText}>Record Promotion</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Removed Record Promotion button for cleaner UI */}
 
         {/* Clean Tab Design */}
         <View style={styles.tabContainer}>
@@ -490,71 +1069,7 @@ const LevelStatusScreen = () => {
           ))}
         </View>
 
-        {/* Belt Levels Filters - Only show for Belt Levels */}
-        {viewMode === 'Belt Levels' && (
-          <>
-            <View style={styles.filtersSection}>
-              <Text style={styles.filterLabel}>Belt Type:</Text>
-              <View style={styles.filterRow}>
-                {['All Belts', 'Colored Belts', 'Black Belts'].map((type) => (
-                  <TouchableOpacity 
-                    key={type} 
-                    style={[
-                      styles.filterChip,
-                      selectedBeltType === type && styles.activeFilterChip
-                    ]}
-                    onPress={() => setSelectedBeltType(type)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      selectedBeltType === type && styles.activeFilterChipText
-                    ]}>
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            
-            <View style={styles.filtersSection}>
-              <Text style={styles.filterLabel}>Status:</Text>
-              <View style={styles.filterRow}>
-                {['All Status', 'Active', 'Inactive', 'Testing Ready'].map((status) => (
-                  <TouchableOpacity 
-                    key={status} 
-                    style={[
-                      styles.filterChip,
-                      selectedStatus === status && styles.activeFilterChip
-                    ]}
-                    onPress={() => setSelectedStatus(status)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      selectedStatus === status && styles.activeFilterChipText
-                    ]}>
-                      {status}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.searchSection}>
-              <View style={styles.searchContainer}>
-                <Icon name="search" size={20} color="#95a5a6" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search belt levels..."
-                  placeholderTextColor="#95a5a6"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-              </View>
-            </View>
-          </>
-        )}
-
-        {/* Remove Belt Type and Status filters for cleaner UI */}
+        {/* Belt Levels Filters - Removed for cleaner UI */}
 
         {/* Belt Levels List */}
         <View style={styles.levelsContainer}>
@@ -574,19 +1089,56 @@ const LevelStatusScreen = () => {
                   <>
                     <View style={styles.beltCard}>
                       <View style={styles.beltHeader}>
-                        <View style={[styles.beltCircle, { 
-                          backgroundColor: item.color,
-                          borderColor: item.color === '#FFFFFF' ? '#E5E7EB' : item.color
-                        }]}>
-                          <Text style={[styles.beltNumber, { 
-                            color: item.color === '#FFFFFF' ? '#333' : '#ffffff' 
+                        {item.isStripeBelt && item.stripeColors ? (
+                          // Stripe belt - 70% primary color, 30% stripe color
+                          <View style={[styles.beltCircle, { 
+                            borderColor: '#1F2937',
+                            borderWidth: 2,
+                            overflow: 'hidden'
                           }]}>
-                            {item.level}
-                          </Text>
-                        </View>
+                            <View style={{ 
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '70%',
+                              backgroundColor: item.stripeColors.color1
+                            }} />
+                            <View style={{ 
+                              position: 'absolute',
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '30%',
+                              backgroundColor: item.stripeColors.color2
+                            }} />
+                            <Text style={[styles.beltNumber, { 
+                              color: '#333333',
+                              zIndex: 1,
+                              textShadowColor: 'rgba(255, 255, 255, 0.8)',
+                              textShadowOffset: { width: 0, height: 0 },
+                              textShadowRadius: 3
+                            }]}>
+                              {item.level}
+                            </Text>
+                          </View>
+                        ) : (
+                          // Regular belt - solid circle
+                          <View style={[styles.beltCircle, { 
+                            backgroundColor: item.color,
+                            borderColor: '#1F2937',
+                            borderWidth: 2
+                          }]}>
+                            <Text style={[styles.beltNumber, { 
+                              color: item.textColor || (item.color === '#FFFFFF' ? '#333' : '#ffffff')
+                            }]}>
+                              {item.level}
+                            </Text>
+                          </View>
+                        )}
                         <View style={styles.beltInfo}>
                           <Text style={styles.beltName}>{item.name}</Text>
-                          <Text style={styles.beltSubtitle}>Level {item.level} • {item.students} students</Text>
+                          <Text style={styles.beltSubtitle}>Level {item.level}</Text>
                         </View>
                       </View>
                       
@@ -602,7 +1154,7 @@ const LevelStatusScreen = () => {
                     </View>
                   </>
                 ) : item.type === 'promotion' ? (
-                  // Promotion Display: Clean card matching the image
+                  // Promotion Display: Clean card with actual belt colors
                   <>
                     <View style={styles.promotionContainer}>
                       <Text style={styles.studentLabel}>Student: {item.studentName}</Text>
@@ -610,20 +1162,81 @@ const LevelStatusScreen = () => {
                       <View style={styles.progressionContainer}>
                         <View style={styles.progressionRow}>
                           <Text style={styles.fromText}>From:</Text>
+                          
+                          {/* From Belt Circle */}
                           <View style={styles.beltDot}>
-                            <View style={[styles.colorCircle, { 
-                              backgroundColor: '#FFFFFF', 
-                              borderColor: '#E5E7EB' 
-                            }]} />
+                            {(() => {
+                              const fromBeltInfo = getBeltColorInfo(item.fromBelt);
+                              return fromBeltInfo.isStripe && fromBeltInfo.stripeColors ? (
+                                <View style={[styles.colorCircle, { 
+                                  borderColor: '#1F2937',
+                                  borderWidth: 2,
+                                  overflow: 'hidden'
+                                }]}>
+                                  <View style={{ 
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '70%',
+                                    backgroundColor: fromBeltInfo.stripeColors.color1
+                                  }} />
+                                  <View style={{ 
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '30%',
+                                    backgroundColor: fromBeltInfo.stripeColors.color2
+                                  }} />
+                                </View>
+                              ) : (
+                                <View style={[styles.colorCircle, { 
+                                  backgroundColor: fromBeltInfo.color,
+                                  borderColor: '#1F2937',
+                                  borderWidth: 2
+                                }]} />
+                              );
+                            })()}
                           </View>
                           
                           <Icon name="arrow-forward" size={18} color="#95a5a6" />
                           
+                          {/* To Belt Circle */}
                           <View style={styles.beltDot}>
-                            <View style={[styles.colorCircle, { 
-                              backgroundColor: '#F59E0B', 
-                              borderColor: '#D97706' 
-                            }]} />
+                            {(() => {
+                              const toBeltInfo = getBeltColorInfo(item.toBelt);
+                              return toBeltInfo.isStripe && toBeltInfo.stripeColors ? (
+                                <View style={[styles.colorCircle, { 
+                                  borderColor: '#1F2937',
+                                  borderWidth: 2,
+                                  overflow: 'hidden'
+                                }]}>
+                                  <View style={{ 
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '70%',
+                                    backgroundColor: toBeltInfo.stripeColors.color1
+                                  }} />
+                                  <View style={{ 
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '30%',
+                                    backgroundColor: toBeltInfo.stripeColors.color2
+                                  }} />
+                                </View>
+                              ) : (
+                                <View style={[styles.colorCircle, { 
+                                  backgroundColor: toBeltInfo.color,
+                                  borderColor: '#1F2937',
+                                  borderWidth: 2
+                                }]} />
+                              );
+                            })()}
                           </View>
                           
                           <View style={styles.actionIcons}>
@@ -631,7 +1244,7 @@ const LevelStatusScreen = () => {
                               <Icon name="visibility" size={18} color="#3498db" />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.deleteIcon}>
-                              <Icon name="delete" size={18} color="rgba(231, 34, 12, 1)" />
+                              <Icon name="delete" size={18} color="#006CB5" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -649,7 +1262,7 @@ const LevelStatusScreen = () => {
                     </View>
                   </>
                 ) : item.type === 'upcoming' ? (
-                  // Upcoming Test Display: Student, Current Belt, Testing For, Date, Readiness
+                  // Upcoming Test Display: Always show test info, conditionally show certificate
                   <>
                     <View style={styles.upcomingHeader}>
                       <View style={styles.upcomingInfo}>
@@ -665,19 +1278,42 @@ const LevelStatusScreen = () => {
                     </View>
                     
                     <View style={styles.upcomingContent}>
-                      <View style={styles.readinessSection}>
-                        <View style={styles.readinessHeader}>
-                          <Text style={styles.readinessLabel}>Readiness</Text>
-                          <Text style={styles.readinessPercentage}>{item.readiness}%</Text>
+                      {/* Certificate Section - Only show if certificate exists */}
+                      {(item.certificateCode || item.certificateUrl) && (
+                        <View style={styles.certificateSection}>
+                          <View style={styles.certificateHeader}>
+                            <View style={styles.certificateIconContainer}>
+                              <Icon name="card-membership" size={20} color="#006CB5" />
+                            </View>
+                            <View style={styles.certificateInfo}>
+                              <Text style={styles.certificateLabel}>Certificate Code</Text>
+                              <Text style={styles.certificateCode}>{item.certificateCode || 'N/A'}</Text>
+                            </View>
+                          </View>
+                          
+                          {item.certificateUrl && (
+                            <View style={styles.certificateButtons}>
+                              <TouchableOpacity 
+                                style={styles.viewButton}
+                                onPress={() => handleViewCertificate(item.certificateUrl, item.certificateCode, item)}
+                              >
+                                <Icon name="visibility" size={16} color="#fff" />
+                                <Text style={styles.viewButtonText}>View</Text>
+                              </TouchableOpacity>
+                              
+                              <TouchableOpacity 
+                                style={styles.downloadButton}
+                                onPress={() => handleDownloadCertificate(item.certificateUrl, item.certificateCode)}
+                              >
+                                <Icon name="file-download" size={16} color="#fff" />
+                                <Text style={styles.downloadButtonText}>Download</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
                         </View>
-                        <View style={styles.readinessBar}>
-                          <View style={[styles.readinessFill, { 
-                            width: `${item.readiness}%`,
-                            backgroundColor: item.readiness >= 80 ? '#10B981' : item.readiness >= 60 ? '#FF9800' : '#EF4444'
-                          }]} />
-                        </View>
-                      </View>
+                      )}
                       
+                      {/* Notes - Always show if available */}
                       {item.notes && (
                         <View style={styles.upcomingRow}>
                           <Text style={styles.upcomingLabel}>Notes:</Text>
@@ -729,19 +1365,110 @@ const LevelStatusScreen = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Certificate View Modal */}
+      <Modal
+        visible={viewingCertificate !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setViewingCertificate(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderInfo}>
+                <Text style={styles.modalTitle}>Certificate</Text>
+                {viewingCertificate && (
+                  <Text style={styles.modalSubtitle}>
+                    {viewingCertificate.studentName} - {viewingCertificate.testingFor}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setViewingCertificate(null)}
+              >
+                <Icon name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              {viewingCertificate && (
+                <>
+                  {imageLoading && (
+                    <View style={styles.imageLoadingContainer}>
+                      <ActivityIndicator size="large" color="#006CB5" />
+                      <Text style={styles.imageLoadingText}>Loading certificate...</Text>
+                    </View>
+                  )}
+                  
+                  {imageError && (
+                    <View style={styles.imageErrorContainer}>
+                      <Icon name="error-outline" size={64} color="#006CB5" />
+                      <Text style={styles.imageErrorText}>Failed to load certificate</Text>
+                      <Text style={styles.imageErrorSubtext}>
+                        The certificate file may not be available
+                      </Text>
+                    </View>
+                  )}
+                  
+                  <Image
+                    source={{ 
+                      uri: viewingCertificate.url,
+                      headers: {
+                        'Accept': 'image/jpeg,image/png,image/jpg,*/*',
+                      }
+                    }}
+                    style={[styles.certificateImage, (imageLoading || imageError) && { display: 'none' }]}
+                    resizeMode="contain"
+                    onLoadStart={() => {
+                      console.log('📸 Image loading started:', viewingCertificate.url);
+                      setImageLoading(true);
+                      setImageError(false);
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Image loaded successfully');
+                      setImageLoading(false);
+                      setImageError(false);
+                    }}
+                    onError={(error) => {
+                      console.error('❌ Image load error:', error.nativeEvent.error);
+                      setImageLoading(false);
+                      setImageError(true);
+                    }}
+                  />
+                </>
+              )}
+            </View>
+
+            {viewingCertificate && (
+              <View style={styles.modalFooter}>
+                <Text style={styles.certificateCodeText}>
+                  Code: {viewingCertificate.code}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#006CB5',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#006CB5',
   },
   
   // Header
   header: {
-    backgroundColor: '#f60909ff',
+    backgroundColor: '#006CB5',
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -779,6 +1506,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    backgroundColor: '#f5f5f5',
   },
 
   // Clean Tab Design
@@ -799,8 +1527,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeTab: {
-    backgroundColor: 'rgba(237, 48, 11, 1)',
-    shadowColor: '#df2d0dff',
+    backgroundColor: '#006CB5',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -877,7 +1605,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'rgba(236, 34, 12, 1)',
+    backgroundColor: '#006CB5',
     marginRight: 8,
     marginTop: 5,
   },
@@ -1275,38 +2003,111 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     flex: 1,
   },
-  readinessSection: {
-    marginBottom: 6,
-    backgroundColor: '#f8f9fa',
+  
+  // Certificate Section Styles
+  certificateSection: {
+    backgroundColor: '#fff3cd',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#006CB5',
   },
-  readinessHeader: {
+  certificateHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  readinessLabel: {
-    fontSize: 12,
+  certificateIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  certificateInfo: {
+    flex: 1,
+  },
+  certificateLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#856404',
+    marginBottom: 2,
   },
-  readinessPercentage: {
-    fontSize: 12,
+  certificateCode: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#2c3e50',
+    letterSpacing: 0.5,
   },
-  readinessBar: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
-    overflow: 'hidden',
+  certificateButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  readinessFill: {
-    height: '100%',
-    borderRadius: 3,
+  viewButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 6,
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  viewButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  downloadButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#006CB5',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 6,
+    shadowColor: '#006CB5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  downloadButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  
+  // Status Badge for Upcoming Tests
+  statusBadgeSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
   },
 
   // Loading States
@@ -1315,6 +2116,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     fontSize: 16,
@@ -1347,8 +2149,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   activeFilterChip: {
-    backgroundColor: 'hsla(0, 91%, 50%, 1.00)',
-    borderColor: '#e74c3c',
+    backgroundColor: '#006CB5',
+    borderColor: '#006CB5',
   },
   filterChipText: {
     fontSize: 11,
@@ -1399,7 +2201,7 @@ const styles = StyleSheet.create({
   recordButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(231, 33, 11, 1)',
+    backgroundColor: '#006CB5',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -1409,6 +2211,104 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#fff',
+  },
+
+  // Certificate View Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: SCREEN_WIDTH * 0.95,
+    height: SCREEN_HEIGHT * 0.85,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#006CB5',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalHeaderInfo: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  certificateImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageLoadingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 12,
+  },
+  imageErrorContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  imageErrorText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#006CB5',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  imageErrorSubtext: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalFooter: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  certificateCodeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
   },
 });
 

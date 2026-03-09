@@ -32,12 +32,12 @@ const Navbar = () => {
     { id: 2, title: 'Attendance', iconType: 'MaterialIcons', iconName: 'assignment', route: 'Attendance' },
     { id: 3, title: 'Level / Belt', iconType: 'MaterialIcons', iconName: 'military-tech', route: 'Level' },
     { id: 4, title: 'Events', iconType: 'MaterialIcons', iconName: 'event', route: 'Events' },
-    { id: 5, title: 'Certificates', iconType: 'MaterialIcons', iconName: 'workspace-premium', route: 'Certificates' },
+    { id: 5, title: 'Certificates', iconType: 'MaterialIcons', iconName: 'card-membership', route: 'Certificates' },
     { id: 6, title: 'Fee Summary', iconType: 'MaterialIcons', iconName: 'account-balance-wallet', route: 'Fees' },
     { id: 7, title: 'Profile', iconType: 'MaterialIcons', iconName: 'person', route: 'Profile' },
   ];
 
-  const renderIcon = (iconType, iconName, size = 24, color = '#ff6b6b') => {
+  const renderIcon = (iconType, iconName, size = 24, color = '#006CB5') => {
     switch (iconType) {
       case 'MaterialIcons':
         return <Icon name={iconName} size={size} color={color} type="MaterialIcons" />;
@@ -173,7 +173,7 @@ const Navbar = () => {
                     activeOpacity={0.6}
                   >
                     <View style={styles.menuIconContainer}>
-                      {renderIcon(item.iconType, item.iconName, 24, '#ff6b6b')}
+                      {renderIcon(item.iconType, item.iconName, 24, '#006CB5')}
                     </View>
                     <Text style={styles.menuText}>{item.title}</Text>
                     <Icon name="chevron-right" size={24} color="#94a3b8" type="MaterialIcons" />
@@ -193,7 +193,7 @@ const Navbar = () => {
                     <Icon name="logout" size={20} color={colors.white} type="MaterialIcons" />
                   </View>
                   <Text style={styles.logoutText}>Logout</Text>
-                  <Icon name="chevron-right" size={24} color="#dc2626" type="MaterialIcons" />
+                  <Icon name="chevron-right" size={24} color="#006CB5" type="MaterialIcons" />
                 </TouchableOpacity>
               </ScrollView>
 
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuHeader: {
-    backgroundColor: '#ff6b6b',
+    backgroundColor: '#006CB5',
     paddingTop: 40,
     paddingBottom: 30,
     paddingHorizontal: 24,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 18,
-    shadowColor: '#ff6b6b',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -440,11 +440,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#ef4444',
+    backgroundColor: '#006CB5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 18,
-    shadowColor: '#ef4444',
+    shadowColor: '#006CB5',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '800',
-    color: '#dc2626',
+    color: '#006CB5',
   },
   menuFooter: {
     padding: 24,
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#ff6b6b',
+    color: '#006CB5',
     marginBottom: 6,
   },
   footerCopyright: {

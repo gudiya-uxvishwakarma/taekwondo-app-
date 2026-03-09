@@ -18,10 +18,58 @@ class StudentService {
         throw new Error('Authentication required. Please login again.');
       }
 
-      const response = await api.get(this.endpoints.STUDENT.PROFILE);
+      // Use the students/profile endpoint
+      const response = await api.get('/students/profile');
+      
+      console.log('📥 Profile response:', response);
       
       if (response.status === 'success') {
-        return response.data;
+        const profileData = response.data;
+        console.log('✅ Profile data received:', profileData);
+        
+        // Map backend response to include all fields needed for ProfileScreen
+        return {
+          ...profileData,
+          // Personal Information
+          fullName: profileData.fullName || profileData.name || '',
+          name: profileData.name || profileData.fullName || '',
+          admissionNumber: profileData.admissionNumber || '',
+          idNumber: profileData.idNumber || '',
+          dateOfBirth: profileData.dateOfBirth || '',
+          age: profileData.age || '',
+          gender: profileData.gender || '',
+          bloodGroup: profileData.bloodGroup || '',
+          joiningDate: profileData.joiningDate || profileData.admissionDate || '',
+          schoolCollegeName: profileData.schoolCollegeName || '',
+          organizationName: profileData.organizationName || '',
+          qualification: profileData.qualification || '',
+          
+          // Contact Information
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          address: profileData.address || '',
+          
+          // Family Information
+          fatherName: profileData.fatherName || '',
+          motherName: profileData.motherName || '',
+          fatherPhone: profileData.fatherPhone || '',
+          motherPhone: profileData.motherPhone || '',
+          fatherOccupation: profileData.fatherOccupation || '',
+          motherOccupation: profileData.motherOccupation || '',
+          
+          // Training Information
+          instructorName: profileData.instructorName || '',
+          classAddress: profileData.classAddress || '',
+          currentBeltLevel: profileData.currentBeltLevel || profileData.beltLevel || '',
+          
+          // Achievements
+          achievements: profileData.achievements || [],
+          
+          // Academic Info
+          class: profileData.class || '',
+          section: profileData.section || '',
+          rollNo: profileData.rollNo || profileData.admissionNumber || '',
+        };
       } else {
         throw new Error(response.message || 'Failed to load profile');
       }
@@ -327,12 +375,12 @@ class StudentService {
     } catch (error) {
       console.error('❌ Error fetching belt tests:', error);
       
-      // Return sample belt tests as fallback
-      console.log('🔄 Using fallback sample belt tests...');
+      // Return empty array instead of sample data
+      console.log('📊 No belt tests available from backend');
       return {
         status: 'success',
         data: {
-          tests: this.getSampleBeltTests()
+          tests: []
         }
       };
     }

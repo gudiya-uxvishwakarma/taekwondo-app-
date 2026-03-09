@@ -91,6 +91,8 @@ class CertificateService {
           year: cert?.year || new Date(cert?.issuedDate || cert?.issueDate || new Date()).getFullYear(),
           // Add examiner property for backward compatibility
           examiner: achievementDetails?.examiner || cert?.instructor || 'Academy Director',
+          // Add imageUrl for uploaded certificate files (images or PDFs)
+          imageUrl: cert?.imageUrl || cert?.filePath || null,
           // Add achievement details for full compatibility
           achievementDetails: {
             title: achievementDetails?.title || cert?.title || cert?.achievementType,
@@ -149,11 +151,11 @@ class CertificateService {
     if (typeStr.includes('gold') || typeStr.includes('medal')) return '#FFB800';
     if (typeStr.includes('silver')) return '#C0C0C0';
     if (typeStr.includes('bronze')) return '#CD7F32';
-    if (typeStr.includes('belt promotion') || typeStr.includes('promotion')) return '#8B0000';
-    if (typeStr.includes('completion') || typeStr.includes('python')) return '#007AFF';
+    if (typeStr.includes('belt promotion') || typeStr.includes('promotion')) return '#006CB5';
+    if (typeStr.includes('completion') || typeStr.includes('python')) return '#0EA5E9';
     if (typeStr.includes('participation') || typeStr.includes('workshop') || typeStr.includes('attendance')) return '#34C759';
-    if (typeStr.includes('achievement') || typeStr.includes('award')) return '#FF9800';
-    return '#007AFF';
+    if (typeStr.includes('achievement') || typeStr.includes('award')) return '#3B82F6';
+    return '#006CB5';
   }
 
   // Get certificate icon based on type

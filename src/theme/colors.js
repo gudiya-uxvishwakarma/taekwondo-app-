@@ -1,16 +1,16 @@
 export const colors = {
-  // Brand Colors (Red, Yellow, White) - Enhanced
-  primary: '#E63946', // Vibrant Red (Taekwondo Red)
-  primaryDark: '#C1121F',
-  primaryLight: '#F77F8A',
-  secondary: '#FFD60A', // Bright Yellow
-  secondaryDark: '#FFC300',
-  secondaryLight: '#FFE566',
+  // Brand Colors (Blue, Light Blue, White) - Enhanced
+  primary: '#006CB5', // Professional Blue
+  primaryDark: '#004A7C',
+  primaryLight: '#4A9FD8',
+  secondary: '#0EA5E9', // Sky Blue
+  secondaryDark: '#0284C7',
+  secondaryLight: '#38BDF8',
   
   // Accent Colors
-  accent1: '#FF6B6B', // Coral Red
-  accent2: '#FFB703', // Amber
-  accent3: '#FB8500', // Orange
+  accent1: '#3B82F6', // Bright Blue
+  accent2: '#60A5FA', // Light Blue
+  accent3: '#2563EB', // Royal Blue
   
   // Neutrals - Modern
   white: '#FFFFFF',
@@ -38,12 +38,12 @@ export const colors = {
   // Status - Vibrant
   success: '#06D6A0', // Teal Green
   successDark: '#048B6B',
-  error: '#EF476F',   // Pink Red
-  errorDark: '#C62E51',
-  warning: '#FFB703', // Amber
-  warningDark: '#FB8500',
-  info: '#118AB2',    // Ocean Blue
-  infoDark: '#0D6986',
+  error: '#3B82F6',   // Blue (replacing red)
+  errorDark: '#2563EB',
+  warning: '#60A5FA', // Light Blue
+  warningDark: '#3B82F6',
+  info: '#0EA5E9',    // Sky Blue
+  infoDark: '#0284C7',
   
   // Shadows & Overlays
   shadow: 'rgba(0, 0, 0, 0.08)',
@@ -53,16 +53,16 @@ export const colors = {
   overlayLight: 'rgba(26, 26, 46, 0.2)',
   
   // Gradients - Premium
-  gradientRed: ['#E63946', '#C1121F'],
-  gradientYellow: ['#FFD60A', '#FFB703'],
-  gradientSunset: ['#E63946', '#FFB703'],
-  gradientOcean: ['#118AB2', '#06D6A0'],
+  gradientBlue: ['#006CB5', '#004A7C'],
+  gradientSky: ['#0EA5E9', '#60A5FA'],
+  gradientOcean: ['#006CB5', '#0EA5E9'],
+  gradientDeep: ['#004A7C', '#1A1A2E'],
   gradientDark: ['#1A1A2E', '#16213E'],
   gradientLight: ['#FFFFFF', '#F8F9FA'],
   
   // Special Effects
-  glow: 'rgba(230, 57, 70, 0.3)',
-  glowYellow: 'rgba(255, 214, 10, 0.3)',
+  glow: 'rgba(0, 108, 181, 0.3)',
+  glowBlue: 'rgba(14, 165, 233, 0.3)',
   glassBg: 'rgba(255, 255, 255, 0.1)',
   glassBorder: 'rgba(255, 255, 255, 0.2)',
 };

@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   persistentErrorMessage: {
     fontSize: 14,
-    color: '#FF6B6B',
+    color: '#006CB5',
     textAlign: 'center',
     fontStyle: 'italic',
     marginBottom: spacing.lg,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   restartButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#006CB5',
   },
   retryButtonText: {
     color: '#fff',

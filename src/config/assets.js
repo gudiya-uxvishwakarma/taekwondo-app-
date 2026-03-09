@@ -52,7 +52,7 @@ export const LogoConfig = {
       backgroundColor: '#ffffff',
       borderWidth: 4,
       borderColor: '#ffffff',
-      shadowColor: '#ef4444',
+      shadowColor: '#006CB5',
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.2,
       shadowRadius: 15,

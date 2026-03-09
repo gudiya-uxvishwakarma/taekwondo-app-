@@ -8,12 +8,17 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Linking,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
+import RNFS from 'react-native-fs';
 import Icon from '../components/common/Icon';
 import { useStudent } from '../context/StudentContext';
 import { useNavigation } from '../context/NavigationContext';
 import CertificateService from '../services/CertificateService';
 import CertificatePDFService from '../services/CertificatePDFService';
+import API_CONFIG from '../config/api';
 import { Certificate } from '../models/Certificate';
 import { colors, spacing } from '../theme';
 import CertificateViewModal from './CertificateViewModal';
@@ -31,6 +36,36 @@ const CertificateCardScreen = () => {
   useEffect(() => {
     loadCertificates();
   }, []);
+
+  // Request storage permission for Android
+  const requestStoragePermission = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    try {
+      if (Platform.Version >= 33) {
+        // Android 13+ doesn't need WRITE_EXTERNAL_STORAGE
+        return true;
+      }
+
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        {
+          title: 'Storage Permission',
+          message: 'App needs access to your storage to download certificates',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Permission error:', err);
+      return false;
+    }
+  };
 
   const loadCertificates = async () => {
     try {
@@ -107,58 +142,255 @@ const CertificateCardScreen = () => {
     setRefreshing(false);
   };
 
-  const handleViewCertificate = (certificate) => {
-    console.log('👁️ Viewing certificate:', certificate.title);
-    setViewCertificate(certificate);
-    setShowCertificateModal(true);
+  const handleViewCertificate = async (certificate) => {
+    try {
+      console.log('👁️ Viewing certificate:', certificate);
+      
+      // If certificate has uploaded file, show it directly
+      if (certificate.imageUrl) {
+        const certificateUrl = certificate.imageUrl;
+        
+        // Convert relative URL to absolute URL
+        let fullUrl = certificateUrl;
+        if (certificateUrl.startsWith('/')) {
+          const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+          fullUrl = `${serverUrl}${certificateUrl}`;
+        }
+
+        console.log('👁️ Full certificate URL:', fullUrl);
+
+        // Determine if it's a PDF or image
+        const isPdf = certificateUrl.toLowerCase().endsWith('.pdf');
+        console.log('📄 File type:', isPdf ? 'PDF' : 'Image');
+
+        if (isPdf) {
+          // Open PDF in browser
+          console.log('📄 Opening PDF in browser');
+          try {
+            await Linking.openURL(fullUrl);
+            console.log('✅ PDF opened in browser');
+          } catch (error) {
+            console.error('❌ Failed to open PDF:', error);
+            Alert.alert('Error', 'Unable to open PDF. Please try downloading instead.');
+          }
+        } else {
+          // Show image in modal - use the generated certificate modal
+          setViewCertificate(certificate);
+          setShowCertificateModal(true);
+        }
+      } else {
+        // No uploaded file, show generated certificate
+        console.log('👁️ Showing generated certificate');
+        setViewCertificate(certificate);
+        setShowCertificateModal(true);
+      }
+    } catch (error) {
+      console.error('❌ Error viewing certificate:', error);
+      Alert.alert('Error', 'Unable to view certificate');
+    }
   };
 
   const handleDownloadCertificate = async (certificate) => {
     try {
-      console.log('📥 Starting certificate PDF download from card:', certificate.title);
-      setDownloadingCertificate(certificate.id);
+      console.log('📥 Downloading certificate:', certificate);
       
-      // Use the main download method - same as modal
-      const result = await CertificatePDFService.downloadCertificatePDF(certificate);
-      
-      if (result.success) {
-        console.log('✅ Certificate PDF download completed from card:', result.fileName);
+      // If certificate has uploaded file, download it directly
+      if (certificate.imageUrl) {
+        const certificateUrl = certificate.imageUrl;
+
+        // Request storage permission
+        const hasPermission = await requestStoragePermission();
+        if (!hasPermission) {
+          Alert.alert('Permission Denied', 'Storage permission is required to download certificates');
+          return;
+        }
+
+        // Convert relative URL to absolute URL
+        let fullUrl = certificateUrl;
+        if (certificateUrl.startsWith('/')) {
+          const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+          fullUrl = `${serverUrl}${certificateUrl}`;
+        }
+        
+        console.log('📥 Full certificate URL:', fullUrl);
+
+        // Get file extension
+        const fileExtension = certificateUrl.split('.').pop() || 'jpg';
+        const fileName = `certificate_${certificate.student.replace(/\s+/g, '_')}_${certificate.verificationCode || certificate.id}.${fileExtension}`;
+        
+        // Determine download path based on platform
+        let downloadPath;
+        if (Platform.OS === 'ios') {
+          downloadPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+        } else {
+          // For Android, use CachesDirectoryPath first (always works), then try to move to Downloads
+          downloadPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+        }
+
+        console.log('📁 Download path:', downloadPath);
+
+        // Show downloading alert
+        setDownloadingCertificate(certificate.id);
+        Alert.alert('Downloading', 'Please wait while we download your certificate...');
+
+        // Try all fallback URLs from API_CONFIG
+        let downloadSuccess = false;
+        let lastError = null;
+
+        // If certificateUrl is already a full URL (Cloudinary), try it directly first
+        if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
+          try {
+            console.log('🔄 Trying direct Cloudinary URL:', certificateUrl);
+
+            const downloadResult = await RNFS.downloadFile({
+              fromUrl: certificateUrl,
+              toFile: downloadPath,
+              background: true,
+              discretionary: true,
+              cacheable: false,
+              headers: {
+                'Accept': 'image/jpeg,image/png,image/jpg,application/pdf,*/*',
+              },
+              connectionTimeout: 15000,
+              readTimeout: 15000,
+              progress: (res) => {
+                if (res.contentLength > 0) {
+                  const progress = (res.bytesWritten / res.contentLength) * 100;
+                  console.log(`📊 Download progress: ${progress.toFixed(0)}%`);
+                }
+              },
+            }).promise;
+
+            if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
+              console.log('✅ Certificate downloaded successfully from Cloudinary');
+              downloadSuccess = true;
+            }
+          } catch (error) {
+            console.log('⚠️ Cloudinary direct download failed:', error.message);
+            lastError = error;
+          }
+        }
+
+        // If direct download failed or not a full URL, try with base URLs
+        if (!downloadSuccess && !certificateUrl.startsWith('http://') && !certificateUrl.startsWith('https://')) {
+          for (const baseUrl of API_CONFIG.FALLBACK_URLS) {
+            try {
+              const tryUrl = `${baseUrl.replace('/api', '')}${certificateUrl}`;
+              console.log('🔄 Trying URL:', tryUrl);
+
+            const downloadResult = await RNFS.downloadFile({
+              fromUrl: tryUrl,
+              toFile: downloadPath,
+              background: true,
+              discretionary: true,
+              cacheable: false,
+              headers: {
+                'Accept': 'image/jpeg,image/png,image/jpg,application/pdf,*/*',
+              },
+              connectionTimeout: 15000,
+              readTimeout: 15000,
+              progress: (res) => {
+                const progress = (res.bytesWritten / res.contentLength) * 100;
+                console.log(`📊 Download progress: ${progress.toFixed(0)}%`);
+              },
+            }).promise;
+
+            console.log('✅ Download result:', downloadResult);
+
+            if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
+              console.log('✅ Certificate downloaded successfully from:', tryUrl);
+              downloadSuccess = true;
+              break;
+            } else if (downloadResult.statusCode === 404) {
+              console.log('⚠️ File not found at:', tryUrl);
+              lastError = new Error('Certificate file not found on server');
+            } else {
+              console.log('⚠️ Download failed with status:', downloadResult.statusCode);
+              lastError = new Error(`Download failed with status code: ${downloadResult.statusCode}`);
+            }
+          } catch (urlError) {
+            console.log('⚠️ Failed to download from:', baseUrl.replace('/api', ''), urlError.message);
+            lastError = urlError;
+          }
+        }
+        }
+
+        if (!downloadSuccess) {
+          throw lastError || new Error('Certificate file not found on server');
+        }
+
+        // For Android, try to move to Downloads folder
+        if (Platform.OS === 'android') {
+          try {
+            const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+            await RNFS.moveFile(downloadPath, downloadsPath);
+            downloadPath = downloadsPath;
+            console.log('✅ Moved to Downloads folder:', downloadsPath);
+          } catch (moveError) {
+            console.log('⚠️ Could not move to Downloads, file saved in app cache:', moveError.message);
+          }
+        }
+
         Alert.alert(
-          'Download Successful! 🎉',
-          `Certificate PDF downloaded successfully!\n\nFile: ${result.fileName}`,
-          [{ text: 'Great!' }]
+          'Download Complete',
+          `Certificate has been saved successfully.\n\nFile: ${fileName}`,
+          [
+            { 
+              text: 'Open', 
+              onPress: () => {
+                Linking.openURL(`file://${downloadPath}`).catch(err => {
+                  console.log('Cannot open file:', err);
+                  Alert.alert('Info', 'File downloaded but cannot be opened automatically. Please check your Downloads folder.');
+                });
+              }
+            },
+            { text: 'OK' }
+          ]
         );
       } else {
-        console.error('❌ Certificate download failed from card:', result.error);
-        if (result.fallback) {
+        // No uploaded file, download generated PDF
+        console.log('📥 Starting certificate PDF download from card:', certificate.title);
+        
+        // Use the main download method - same as modal
+        const result = await CertificatePDFService.downloadCertificatePDF(certificate);
+        
+        if (result.success) {
+          console.log('✅ Certificate PDF download completed from card:', result.fileName);
           Alert.alert(
-            'PDF Feature Unavailable',
-            'PDF download is temporarily unavailable. You can still view the certificate by clicking the "View" button.',
-            [
-              { text: 'View Certificate', onPress: () => handleViewCertificate(certificate) },
-              { text: 'OK' }
-            ]
+            'Download Successful! 🎉',
+            `Certificate PDF downloaded successfully!\n\nFile: ${result.fileName}`,
+            [{ text: 'Great!' }]
           );
         } else {
-          Alert.alert(
-            'Download Failed',
-            'Failed to download certificate. Please try again.',
-            [
-              { text: 'Retry', onPress: () => handleDownloadCertificate(certificate) },
-              { text: 'Cancel' }
-            ]
-          );
+          console.error('❌ Certificate download failed from card:', result.error);
+          if (result.fallback) {
+            Alert.alert(
+              'PDF Feature Unavailable',
+              'PDF download is temporarily unavailable. You can still view the certificate by clicking the "View" button.',
+              [
+                { text: 'View Certificate', onPress: () => handleViewCertificate(certificate) },
+                { text: 'OK' }
+              ]
+            );
+          } else {
+            Alert.alert(
+              'Download Failed',
+              'Failed to download certificate. Please try again.',
+              [
+                { text: 'Retry', onPress: () => handleDownloadCertificate(certificate) },
+                { text: 'Cancel' }
+              ]
+            );
+          }
         }
       }
     } catch (error) {
-      console.error('❌ Certificate download failed from card:', error);
+      console.error('❌ Error downloading certificate:', error);
       Alert.alert(
-        'Download Error',
-        'An unexpected error occurred while downloading the certificate.',
-        [
-          { text: 'Retry', onPress: () => handleDownloadCertificate(certificate) },
-          { text: 'Cancel' }
-        ]
+        'Download Failed',
+        error.message === 'Certificate file not found on server'
+          ? 'This certificate file is not available on the server. Please contact your administrator.'
+          : 'Unable to download certificate. Please check your internet connection and try again.'
       );
     } finally {
       setDownloadingCertificate(null);
@@ -183,7 +415,7 @@ const CertificateCardScreen = () => {
     if (titleLower.includes('medal') || titleLower.includes('award')) return 'emoji-events';
     if (titleLower.includes('achievement')) return 'star';
     if (titleLower.includes('course') || titleLower.includes('completion')) return 'school';
-    return 'workspace-premium'; // Default certificate icon
+    return 'card-membership'; // Default certificate icon
   };
 
   const renderCertificateCard = (certificate) => {
@@ -273,7 +505,7 @@ const CertificateCardScreen = () => {
             {downloadingCertificate === certificate.id ? (
               <ActivityIndicator size={16} color="#fff" />
             ) : (
-              <Icon name="download" size={16} color="#fff" type="MaterialIcons" />
+              <Icon name="file-download" size={16} color="#fff" type="MaterialIcons" />
             )}
             <Text style={styles.downloadButtonText}>
               {downloadingCertificate === certificate.id ? 'Downloading...' : 'Download PDF'}

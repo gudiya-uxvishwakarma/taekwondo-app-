@@ -6,7 +6,7 @@ buildscript {
         compileSdkVersion = 34
         targetSdkVersion = 34
         ndkVersion = "26.1.10909125"
-        kotlinVersion = "1.6.21"
+        kotlinVersion = "1.8.22"
     }
     repositories {
         google()
@@ -30,6 +30,14 @@ allprojects {
     configurations.all {
         resolutionStrategy {
             force "com.facebook.react:react-android:0.72.6"
+            force "androidx.activity:activity:1.8.0"
+            force "androidx.activity:activity-ktx:1.8.0"
+            
+            // Force consistent Kotlin version to avoid duplicate class errors
+            force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+            
             // Map the old dependency to the new one
             dependencySubstitution {
                 substitute module('com.facebook.react:react-native') using module('com.facebook.react:react-android:0.72.6')
