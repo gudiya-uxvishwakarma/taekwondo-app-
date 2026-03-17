@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -14,16 +13,12 @@ import {
   TextInput,
   StatusBar,
   SafeAreaView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useStudent } from '../../context/StudentContext';
 import Icon from '../../components/common/Icon';
-import Logo from '../../components/common/Logo'; 
+import Logo from '../../components/common/Logo';
 
-// Updated: Using Logo component properly - displays logo.png from assets
-// Last updated: 2026-02-04 - Logo improvements
-
-const StudentLoginScreen = ({ onBack }) => {
+const PracticalLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,11 +28,9 @@ const StudentLoginScreen = ({ onBack }) => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const logoScale = useRef(new Animated.Value(0.9)).current; 
+  const logoScale = useRef(new Animated.Value(0.9)).current;
 
-  // Component mount and animations
   useEffect(() => {
-    // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -67,27 +60,33 @@ const StudentLoginScreen = ({ onBack }) => {
     setLoading(true);
     
     try {
-      console.log('🔐 Starting login...');
+      console.log('🔐 Starting practical syllabus login...');
       
-      // Direct login through context - this handles both AuthService and context
       const success = await login({ email, password });
       
       if (success) {
-        console.log('✅ Login successful');
-        Alert.alert('Success', 'Login successful!');
+        console.log('✅ Login successful - granting access to practical syllabus');
+        Alert.alert('Success', 'Login successful! Welcome to Practical Syllabus', [
+          {
+            text: 'Continue',
+            onPress: () => {
+              if (onLoginSuccess) {
+                onLoginSuccess();
+              }
+            }
+          }
+        ]);
       } else {
         console.log('⚠️ Login failed');
         Alert.alert('Login Failed', 'Invalid email or password. Please check your credentials and try again.');
       }
     } catch (error) {
-      // Only log in development
       if (__DEV__) {
         console.log('⚠️ Login error:', error.message);
       }
       
       let errorMessage = 'Invalid email or password';
       
-      // Check for specific error types
       if (error.message) {
         if (error.message.includes('Network request failed') || error.message.includes('Network Error')) {
           errorMessage = 'Network connection failed. Please check your internet connection and try again.';
@@ -102,7 +101,6 @@ const StudentLoginScreen = ({ onBack }) => {
         }
       }
       
-      // Check response status if available
       if (error.response?.status === 401) {
         errorMessage = 'Invalid password. Please check your password and try again.';
       } else if (error.response?.status === 404) {
@@ -113,6 +111,27 @@ const StudentLoginScreen = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNeedRegistration = () => {
+    Alert.alert(
+      'Not Registered?',
+      'To access the Practical Syllabus, you need to register as a student and complete the payment.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Register & Pay',
+          onPress: () => {
+            if (onPaymentRequired) {
+              onPaymentRequired();
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -160,10 +179,10 @@ const StudentLoginScreen = ({ onBack }) => {
             <View style={styles.logoContainer}>
               <Logo size="xlarge" showText={false} variant="login" />
             </View>
-            <Text style={styles.welcomeEmoji}>👋</Text>
-            <Text style={styles.welcomeTitle}>Welcome Back!</Text>
+            <Text style={styles.welcomeEmoji}>🥋</Text>
+            <Text style={styles.welcomeTitle}>Practical Syllabus</Text>
             <Text style={styles.welcomeSubtitle}>
-              Sign in to continue your educational journey
+              Login to access your practical training content
             </Text>
           </Animated.View>
 
@@ -179,11 +198,11 @@ const StudentLoginScreen = ({ onBack }) => {
           >
             <View style={styles.formHeader}>
               <View style={styles.formLogoContainer}>
-                <Icon name="person" size={24} color="#006CB5" type="MaterialIcons" />
+                <Icon name="school" size={24} color="#006CB5" type="MaterialIcons" />
               </View>
               <Text style={styles.formTitle}>Student Login</Text>
               <Text style={styles.formSubtitle}>
-                Enter your email and password
+                Enter your registered email and password
               </Text>
             </View>
 
@@ -255,7 +274,22 @@ const StudentLoginScreen = ({ onBack }) => {
               )}
             </TouchableOpacity>
 
-            </Animated.View>
+            {/* Registration Link */}
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerText}>Not registered yet?</Text>
+              <TouchableOpacity onPress={handleNeedRegistration}>
+                <Text style={styles.registerLink}>Register & Pay</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Info Box */}
+            <View style={styles.infoBox}>
+              <Icon name="info" size={20} color="#006CB5" type="MaterialIcons" />
+              <Text style={styles.infoText}>
+                Only registered students can access the Practical Syllabus
+              </Text>
+            </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -453,52 +487,6 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 6,
   },
-  suggestionButton: {
-    padding: 6,
-  },
-  suggestionsContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  suggestionItem: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  suggestionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  suggestionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fef2f2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  suggestionText: {
-    flex: 1,
-  },
-  suggestionEmail: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  suggestionLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
   loginButton: {
     backgroundColor: '#006CB5',
     borderRadius: 12,
@@ -529,6 +517,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  registerText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginRight: 6,
+  },
+  registerLink: {
+    fontSize: 14,
+    color: '#006CB5',
+    fontWeight: '700',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
+    marginLeft: 8,
+    lineHeight: 18,
+  },
 });
 
-export default StudentLoginScreen;
+export default PracticalLoginScreen;
