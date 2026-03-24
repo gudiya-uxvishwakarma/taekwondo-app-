@@ -1,252 +1,352 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  ImageBackground,
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, StatusBar, Image,
+  ActivityIndicator, Dimensions,
 } from 'react-native';
-import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 
-const TechniqueDetailScreen = ({ technique, onBack }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+const { width: SW, height: SH } = Dimensions.get('window');
+// Video takes 55% of screen height — feels full and immersive
+const VIDEO_HEIGHT = Math.round(SH * 0.55);
 
-  const steps = technique?.steps || [
-    'Quickly lift your left knee, bending your leg towards your chest.',
-    'Extend your foot forward, striking with the ball of your foot.',
-    'Retract your leg immediately after impact.',
-    'Return to your guard position.',
-  ];
+let Video = null;
+try { Video = require('react-native-video').default; } catch (e) {}
 
-  const tips = technique?.tips || [
-    'Keep your body relaxed to maximize speed and power.',
-    'Engage your core for better balance and control.',
-    'Snap your kick back quickly to avoid getting caught.',
-    'Maintain a steady rhythm to improve fluidity.',
-  ];
+function optimizeCloudinaryUrl(url) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  if (url.includes('/upload/q_')) return url;
+  return url.replace('/upload/', '/upload/q_auto,f_auto,vc_auto/');
+}
+
+function getVideoPoster(url) {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  return url
+    .replace('/upload/', '/upload/so_0,w_720,q_auto,f_jpg/')
+    .replace(/\.(mp4|mov|avi|mkv|webm)$/i, '.jpg');
+}
+
+const FALLBACK_STEPS = [
+  'Quickly lift your knee, bending your leg towards your chest.',
+  'Extend your foot forward, striking with the ball of your foot.',
+  'Retract your leg immediately after impact.',
+  'Return to your guard position.',
+];
+const FALLBACK_TIPS = [
+  'Keep your body relaxed to maximize speed and power.',
+  'Engage your core for better balance and control.',
+  'Snap your kick back quickly to avoid getting caught.',
+  'Maintain a steady rhythm to improve fluidity.',
+];
+
+export default function TechniqueDetailScreen({ technique, onBack }) {
+  const [paused, setPaused] = useState(true);
+  const [buffering, setBuffering] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const videoRef = useRef(null);
+  const hideTimer = useRef(null);
+
+  const steps = technique?.steps?.filter(s => s?.trim()).length
+    ? technique.steps.filter(s => s?.trim()) : FALLBACK_STEPS;
+  const tips = technique?.tips?.filter(t => t?.trim()).length
+    ? technique.tips.filter(t => t?.trim()) : FALLBACK_TIPS;
+
+  const hasVideo = !!technique?.videoUrl && Video !== null && !videoError;
+  const videoUrl = optimizeCloudinaryUrl(technique?.videoUrl);
+  const posterUrl = getVideoPoster(technique?.videoUrl) || technique?.image;
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const fmt = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const scheduleHide = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3000);
+  };
+
+  const onTapVideo = () => {
+    if (showControls) {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      setShowControls(false);
+    } else {
+      setShowControls(true);
+      if (!paused) scheduleHide();
+    }
+  };
+
+  const onPlayPause = () => {
+    const next = !paused;
+    setPaused(next);
+    if (!next) {
+      scheduleHide();
+    } else {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      setShowControls(true);
+    }
+  };
+
+  const onSeek = (delta) => {
+    const t = Math.max(0, Math.min(currentTime + delta, duration));
+    videoRef.current?.seek(t);
+    setCurrentTime(t);
+    if (!paused) scheduleHide();
+  };
+
+  const onEnd = () => {
+    setPaused(true);
+    setShowControls(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
 
-      {/* Video Player Section */}
-      <View style={styles.videoContainer}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
+      {/* ── FULL-WIDTH VIDEO BLOCK ── */}
+      <View style={s.videoBox}>
+
+        {hasVideo ? (
+          <>
+            {/* Poster shown until video ready */}
+            {!videoReady && posterUrl && (
+              <Image source={{ uri: posterUrl }} style={s.fill} resizeMode="cover" />
+            )}
+
+            <Video
+              ref={videoRef}
+              source={{ uri: videoUrl }}
+              style={[s.fill, !videoReady && { opacity: 0 }]}
+              resizeMode="contain"
+              paused={paused}
+              bufferConfig={{
+                minBufferMs: 2500,
+                maxBufferMs: 20000,
+                bufferForPlaybackMs: 1500,
+                bufferForPlaybackAfterRebufferMs: 2000,
+              }}
+              onReadyForDisplay={() => setVideoReady(true)}
+              onLoad={(d) => { setDuration(d.duration || 0); setVideoReady(true); setBuffering(false); }}
+              onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
+              onProgress={(d) => setCurrentTime(d.currentTime)}
+              onEnd={onEnd}
+              onError={() => { setVideoError(true); setBuffering(false); }}
+              repeat={false}
+              ignoreSilentSwitch="ignore"
+            />
+
+            {/* Spinner */}
+            {(buffering || !videoReady) && (
+              <View style={s.centerAbs} pointerEvents="none">
+                <View style={s.spinnerBg}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={s.loadingTxt}>{videoReady ? 'Buffering…' : 'Loading…'}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Tap zone — behind controls */}
+            {videoReady && (
+              <TouchableOpacity style={s.fill} activeOpacity={1} onPress={onTapVideo} />
+            )}
+
+            {/* Controls — sibling of tap zone, on top */}
+            {videoReady && showControls && (
+              <View style={s.ctrlOverlay} pointerEvents="box-none">
+                {/* Centre buttons */}
+                <View style={s.ctrlRow} pointerEvents="box-none">
+                  <TouchableOpacity style={s.seekBtn} onPress={() => onSeek(-10)}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+                    <Icon name="replay-10" size={34} color="#fff" type="MaterialIcons" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={s.playBtn} onPress={onPlayPause}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Icon name={paused ? 'play-arrow' : 'pause'} size={50} color="#fff" type="MaterialIcons" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={s.seekBtn} onPress={() => onSeek(10)}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+                    <Icon name="forward-10" size={34} color="#fff" type="MaterialIcons" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Progress bar */}
+                <View style={s.progressRow} pointerEvents="none">
+                  <Text style={s.timeTxt}>{fmt(currentTime)}</Text>
+                  <View style={s.bar}>
+                    <View style={[s.barFill, { width: `${progress}%` }]} />
+                  </View>
+                  <Text style={s.timeTxt}>{fmt(duration)}</Text>
+                </View>
+              </View>
+            )}
+          </>
+        ) : (
+          /* No video — thumbnail */
+          technique?.image
+            ? <Image source={{ uri: technique.image }} style={s.fill} resizeMode="cover" />
+            : <View style={[s.fill, s.noVideoFallback]}>
+                <Text style={{ fontSize: 64 }}>🥋</Text>
+              </View>
+        )}
+
+        {/* Back button always on top */}
+        <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
+          <Icon name="arrow-back" size={22} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
-
-        <ImageBackground
-          source={technique?.image || { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=400&h=300&fit=crop' }}
-          style={styles.videoPlayer}
-          imageStyle={styles.videoPlayerImage}
-        >
-          <View style={styles.videoOverlay} />
-          {!isPlaying && (
-            <TouchableOpacity 
-              style={styles.playButton}
-              onPress={() => setIsPlaying(true)}
-              activeOpacity={0.7}
-            >
-              <Icon name="play-arrow" size={60} color="#fff" type="MaterialIcons" />
-            </TouchableOpacity>
-          )}
-        </ImageBackground>
       </View>
 
-      {/* Scrollable Content */}
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header Info */}
-        <View style={styles.headerInfo}>
-          <Text style={styles.difficulty}>Easy</Text>
-          <Text style={styles.techniqueName}>{technique?.name || 'Front Kick - Left'}</Text>
+      {/* ── INFO + STEPS PANEL ── */}
+      <ScrollView style={s.panel} showsVerticalScrollIndicator={false}>
+        {/* Title row */}
+        <View style={s.titleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.diffBadge,
+              technique?.difficulty === 'Medium' ? s.diffM :
+              technique?.difficulty === 'Hard'   ? s.diffH : s.diffE]}>
+              {technique?.difficulty || 'Easy'}
+            </Text>
+            <Text style={s.techName}>{technique?.name || 'Technique'}</Text>
+            {technique?.category && <Text style={s.catTxt}>{technique.category}</Text>}
+          </View>
         </View>
 
-        {/* Steps Section */}
-        <View style={styles.stepsSection}>
-          {steps.map((step, index) => (
-            <View key={index} style={styles.stepItem}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
-              </View>
-              <Text style={styles.stepText}>{step}</Text>
+        {/* Steps */}
+        <View style={s.section}>
+          <Text style={s.secTitle}>Steps</Text>
+          {steps.map((step, i) => (
+            <View key={i} style={s.item}>
+              <View style={s.num}><Text style={s.numTxt}>{i + 1}</Text></View>
+              <Text style={s.itemTxt}>{step}</Text>
             </View>
           ))}
         </View>
 
-        {/* Tips Section */}
-        <View style={styles.tipsSection}>
-          <Text style={styles.sectionTitle}>Tips to succeed</Text>
-          {tips.map((tip, index) => (
-            <View key={index} style={styles.tipItem}>
-              <View style={styles.tipNumber}>
-                <Text style={styles.tipNumberText}>{index + 1}</Text>
-              </View>
-              <Text style={styles.tipText}>{tip}</Text>
+        {/* Tips */}
+        <View style={s.section}>
+          <Text style={s.secTitle}>Tips to succeed</Text>
+          {tips.map((tip, i) => (
+            <View key={i} style={s.item}>
+              <View style={[s.num, s.numDark]}><Text style={s.numTxt}>{i + 1}</Text></View>
+              <Text style={s.itemTxt}>{tip}</Text>
             </View>
           ))}
         </View>
-
-        <View style={styles.footerSpace} />
+        <View style={{ height: 32 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
+
+  /* Video block */
+  videoBox: {
+    width: SW,
+    height: VIDEO_HEIGHT,
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
-  videoContainer: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#1f2937',
-    position: 'relative',
-  },
-  backButton: {
+  fill: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%', height: '100%',
   },
-  videoPlayer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+  noVideoFallback: {
+    justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937',
   },
-  videoPlayerImage: {
-    borderRadius: 0,
-  },
-  videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  container: {
-    flex: 1,
-  },
-  headerInfo: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  difficulty: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '600',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  techniqueName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1f2937',
-  },
-  stepsSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    marginTop: 8,
-  },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    padding: 12,
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  stepText: {
-    fontSize: 13,
-    color: '#4b5563',
-    fontWeight: '500',
-    lineHeight: 20,
-    flex: 1,
-  },
-  tipsSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    padding: 12,
-  },
-  tipNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  tipNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#4b5563',
-    fontWeight: '500',
-    lineHeight: 20,
-    flex: 1,
-  },
-  footerSpace: {
-    height: 24,
-  },
-});
 
-export default TechniqueDetailScreen;
+  centerAbs: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  spinnerBg: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14, paddingHorizontal: 28, paddingVertical: 18,
+    alignItems: 'center', gap: 8,
+  },
+  loadingTxt: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 6 },
+
+  /* Controls overlay */
+  ctrlOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 24, paddingBottom: 12,
+  },
+  ctrlRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 28, flex: 1,
+  },
+  seekBtn: {
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  playBtn: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#006CB5',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  progressRow: {
+    flexDirection: 'row', alignItems: 'center',
+    width: '100%', gap: 8, paddingBottom: 8,
+  },
+  bar: {
+    flex: 1, height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2, overflow: 'hidden',
+  },
+  barFill: { height: '100%', backgroundColor: '#006CB5', borderRadius: 2 },
+  timeTxt: { color: '#fff', fontSize: 11, fontWeight: '600', minWidth: 36, textAlign: 'center' },
+
+  /* Back button */
+  backBtn: {
+    position: 'absolute', top: 44, left: 14, zIndex: 50,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+
+  /* Info panel */
+  panel: { flex: 1, backgroundColor: '#f9fafb' },
+  titleRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
+  },
+  diffBadge: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 },
+  diffE: { color: '#16a34a' }, diffM: { color: '#ca8a04' }, diffH: { color: '#dc2626' },
+  techName: { fontSize: 20, fontWeight: '800', color: '#1f2937' },
+  catTxt: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+
+  section: {
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#fff', marginTop: 8,
+  },
+  secTitle: { fontSize: 15, fontWeight: '800', color: '#1f2937', marginBottom: 10 },
+  item: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    marginBottom: 8, backgroundColor: '#f3f4f6', borderRadius: 8, padding: 10,
+  },
+  num: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#006CB5',
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: 10, flexShrink: 0,
+  },
+  numDark: { backgroundColor: '#1f2937' },
+  numTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  itemTxt: { fontSize: 13, color: '#4b5563', fontWeight: '500', lineHeight: 20, flex: 1 },
+});

@@ -1,12 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    
-    <!-- For Android 11+ (API 30+) -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
       android:name=".MainApplication"
@@ -21,6 +15,9 @@
       android:largeHeap="true"
       android:hardwareAccelerated="true"
       android:extractNativeLibs="true">
+
+      <!-- 16KB page size support for Android 15+ -->
+      <meta-data android:name="android.support.LARGE_PAGE_SIZE" android:value="true" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,45 +8,68 @@ import {
   Image,
   StatusBar,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
+import axios from 'axios';
 import { flashcard } from '../assets';
+import API_CONFIG from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
-const slides = [
+const FALLBACK_SLIDES = [
   {
-    id: '1',
+    _id: '1',
     title: 'Welcome to Taekwon-Do',
-    description: 'Track your progress.\nManage attendance.\nAchieve your goals.',
-    image: flashcard,
-    buttonText: 'Next',
+    points: ['Track your progress.', 'Manage attendance.', 'Achieve your goals.'],
+    image: null,
   },
   {
-    id: '2',
+    _id: '2',
     title: 'Track Your Belt Progress',
-    description: 'Monitor your belt level.\nView exam schedules.\nSee your achievements.',
-    image: flashcard,
-    buttonText: 'Next',
+    points: ['Monitor your belt level.', 'View exam schedules.', 'See your achievements.'],
+    image: null,
   },
   {
-    id: '3',
+    _id: '3',
     title: 'Stay Connected',
-    description: 'Check attendance records.\nView upcoming events.\nAccess certificates.',
-    image: flashcard,
-    buttonText: 'Next',
-  },
-  {
-    id: '4',
-    title: 'Start Your Journey',
-    description: 'Login to access your student portal.',
-    image: flashcard,
-    buttonText: 'Get Started',
+    points: ['Check attendance records.', 'View upcoming events.', 'Access certificates.'],
+    image: null,
   },
 ];
 
 const OnboardingScreen = ({ onFinish }) => {
+  const [slides, setSlides] = useState([]);
+  const [loadingSlides, setLoadingSlides] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    fetchSlides();
+  }, []);
+
+  const fetchSlides = async () => {
+    const urlsToTry = [
+      API_CONFIG.BASE_URL,
+      ...(API_CONFIG.FALLBACK_URLS || []),
+    ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
+
+    let fetched = false;
+    for (const baseUrl of urlsToTry) {
+      try {
+        const res = await axios.get(`${baseUrl}/onboarding`, { timeout: 8000 });
+        const data = res.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setSlides(data);
+          fetched = true;
+          break;
+        }
+      } catch {
+        // try next URL
+      }
+    }
+    if (!fetched) setSlides(FALLBACK_SLIDES);
+    setLoadingSlides(false);
+  };
 
   const animateTransition = (callback) => {
     Animated.sequence([
@@ -74,47 +97,57 @@ const OnboardingScreen = ({ onFinish }) => {
     if (onFinish) onFinish();
   };
 
+  if (loadingSlides) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#006CB5" />
+      </View>
+    );
+  }
+
   const currentSlide = slides[currentIndex];
+  const isLast = currentIndex === slides.length - 1;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Blue header area */}
+      {/* Image header area */}
       <View style={styles.header}>
-        {/* Decorative circles */}
         <View style={styles.circleTopRight} />
         <View style={styles.circleBottomLeft} />
 
-        {/* Back button */}
         {currentIndex > 0 && (
           <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
             <Text style={styles.backArrow}>‹</Text>
           </TouchableOpacity>
         )}
 
-        {/* Skip button */}
-        {currentIndex < slides.length - 1 && (
+        {!isLast && (
           <TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.7}>
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         )}
 
-        {/* Image */}
         <Animated.View style={[styles.imageWrapper, { opacity: fadeAnim }]}>
-          <Image source={currentSlide.image} style={styles.image} resizeMode="cover" />
+          {currentSlide.image ? (
+            <Image
+              source={{ uri: currentSlide.image }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : (
+            <Image source={flashcard} style={styles.image} resizeMode="cover" />
+          )}
         </Animated.View>
       </View>
 
-      {/* White content area */}
+      {/* Content area */}
       <View style={styles.contentArea}>
-        {/* Dot indicators */}
+        {/* Dots */}
         <View style={styles.dotsContainer}>
           {slides.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === currentIndex && styles.activeDot]}
-            />
+            <View key={i} style={[styles.dot, i === currentIndex && styles.activeDot]} />
           ))}
         </View>
 
@@ -125,15 +158,14 @@ const OnboardingScreen = ({ onFinish }) => {
             <Text style={styles.star}>✦</Text>
             <View style={styles.line} />
           </View>
-          <Text style={styles.description}>{currentSlide.description}</Text>
+          {/* Render points as lines */}
+          {currentSlide.points?.filter(p => p?.trim()).map((pt, i) => (
+            <Text key={i} style={styles.description}>{pt}</Text>
+          ))}
         </Animated.View>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleNext}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.buttonText}>{currentSlide.buttonText}</Text>
+        <TouchableOpacity style={styles.button} onPress={handleNext} activeOpacity={0.85}>
+          <Text style={styles.buttonText}>{isLast ? 'Get Started' : 'Next'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -141,6 +173,12 @@ const OnboardingScreen = ({ onFinish }) => {
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

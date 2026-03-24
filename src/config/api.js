@@ -1,12 +1,10 @@
 // API Configuration
 const API_CONFIG = {
-  BASE_URL: 'https://taekwondo-backend-j8w4.onrender.com/api', // Local network IP - Primary for development
+  BASE_URL: 'http://192.168.1.48:5000/api', // Local network IP - Primary for development
   TIMEOUT: 30000, // 30 seconds timeout
   FALLBACK_URLS: [
-    'https://taekwondo-backend-j8w4.onrender.com/api',  // Local network IP - Primary
-    'http://10.0.2.2:5000/api',      // Android emulator mapping
-    'https://taekwondo-backend-j8w4.onrender.com/api',     // Localhost
-    'https://taekwondo-backend-j8w4.onrender.com/api',  // Render production - Fallback
+    'http://192.168.1.48:5000/api', // Local network IP - Primary
+    'http://10.0.2.2:5000/api', // Android emulator mapping
   ],
   ENDPOINTS: {
     AUTH: {
@@ -44,7 +42,9 @@ const API_CONFIG = {
       PROMOTIONS: '/belts/promotions',
       TESTS: '/belts/tests',
     },
-  
+    ONBOARDING: {
+      LIST: '/onboarding',
+    },
   },
 };
 

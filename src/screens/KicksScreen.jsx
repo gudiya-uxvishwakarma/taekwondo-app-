@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,68 @@ import {
   StatusBar,
   TextInput,
   FlatList,
-  ImageBackground,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
-import { colors, spacing } from '../theme';
+import { spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import TechniqueDetailScreen from './TechniqueDetailScreen';
+import axios from 'axios';
+import API_CONFIG from '../config/api';
+
+const FALLBACK_CATEGORIES = [
+  { _id: '1', name: 'Kicks' },
+  { _id: '2', name: 'Jump Kicks' },
+  { _id: '3', name: 'Kicks with chair' },
+  { _id: '4', name: 'Punches' },
+];
 
 const KicksScreen = ({ onBack, onVideoWatch }) => {
-  const [selectedCategory, setSelectedCategory] = useState('Kicks');
+  const [categories, setCategories] = useState([]);
+  const [techniques, setTechniques] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTechnique, setSelectedTechnique] = useState(null);
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    const urlsToTry = [API_CONFIG.BASE_URL, ...(API_CONFIG.FALLBACK_URLS || [])].filter(
+      (v, i, a) => a.indexOf(v) === i
+    );
+
+    for (const baseUrl of urlsToTry) {
+      try {
+        const [catRes, techRes] = await Promise.all([
+          axios.get(`${baseUrl}/techniques/categories`, { timeout: 8000 }),
+          axios.get(`${baseUrl}/techniques`, { timeout: 8000 }),
+        ]);
+        // Server responded — use its data (even if empty)
+        const cats = catRes.data || [];
+        const techs = techRes.data || [];
+        setCategories(cats);
+        setTechniques(techs);
+        setSelectedCategory(cats[0]?.name || '');
+        setLoading(false);
+        return; // done
+      } catch {
+        // try next URL
+      }
+    }
+
+    // All URLs failed — use fallback
+    setCategories(FALLBACK_CATEGORIES);
+    setSelectedCategory('Kicks');
+    setLoading(false);
+  };
+
   const handleTechniqueClick = (technique) => {
-    // Update recently watched in dashboard
     if (onVideoWatch) {
       onVideoWatch({
-        id: technique.id,
+        id: technique._id,
         title: technique.name,
         duration: '5 min',
         lesson: '1/1',
@@ -35,67 +81,45 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
     setSelectedTechnique(technique);
   };
 
-  const categories = [
-    { id: 1, name: 'Kicks', count: 80 },
-    { id: 2, name: 'Jump Kicks', count: 45 },
-    { id: 3, name: 'Kicks with chair', count: 30 },
-    { id: 4, name: 'Punches', count: 25 },
-  ];
-
-  const techniques = {
-    'Kicks': [
-      { id: 1, name: 'Front Kick - Left', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 2, name: 'Front Kick - Right', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 3, name: 'Front Kick - Both Sides', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 4, name: 'Push Kick - Left', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 5, name: 'Push Kick - Right', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 6, name: 'Push Kick - Both Sides', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 7, name: 'Low Kick - Left', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 8, name: 'Low Kick - Right', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 9, name: 'Side Kick - Left', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 10, name: 'Side Kick - Right', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-    ],
-    'Jump Kicks': [
-      { id: 11, name: 'Jump Front Kick', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { id: 12, name: 'Jump Side Kick', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { id: 13, name: 'Jump Spin Kick', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-    ],
-    'Kicks with chair': [
-      { id: 14, name: 'Chair Support Kick', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { id: 15, name: 'Chair Balance Kick', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-    ],
-    'Punches': [
-      { id: 16, name: 'Straight Punch', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { id: 17, name: 'Hook Punch', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-    ],
-  };
-
-  const currentTechniques = techniques[selectedCategory] || [];
-  const filteredTechniques = currentTechniques.filter(tech =>
-    tech.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const currentTechniques = techniques.filter(t => t.category === selectedCategory);
+  const filteredTechniques = currentTechniques.filter(t =>
+    t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderTechniqueItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.techniqueItem} 
+    <TouchableOpacity
+      style={styles.techniqueItem}
       activeOpacity={0.7}
       onPress={() => handleTechniqueClick(item)}
     >
-      <ImageBackground
-        source={item.image}
-        style={styles.techniqueImage}
-        imageStyle={styles.techniqueImageStyle}
-      >
+      <View style={styles.techniqueImageWrapper}>
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={styles.techniqueImageStyle}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.techniqueImageStyle, styles.imagePlaceholder]}>
+            <Text style={styles.placeholderText}>🥋</Text>
+          </View>
+        )}
         <View style={styles.techniqueImageOverlay} />
-      </ImageBackground>
+      </View>
       <Text style={styles.techniqueName}>{item.name}</Text>
+      {item.difficulty && (
+        <View style={[styles.difficultyBadge,
+          item.difficulty === 'Easy' ? styles.easy :
+          item.difficulty === 'Medium' ? styles.medium : styles.hard]}>
+          <Text style={styles.difficultyText}>{item.difficulty}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
-  // Show technique detail screen
   if (selectedTechnique) {
     return (
-      <TechniqueDetailScreen 
+      <TechniqueDetailScreen
         technique={selectedTechnique}
         onBack={() => setSelectedTechnique(null)}
       />
@@ -108,53 +132,37 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
           <Icon name="arrow-back" size={24} color="#1f2937" type="MaterialIcons" />
         </TouchableOpacity>
-        
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{selectedCategory}</Text>
+          <Text style={styles.headerTitle}>{selectedCategory || 'Techniques'}</Text>
           <Text style={styles.headerCount}>{filteredTechniques.length}</Text>
         </View>
       </View>
 
       {/* Category Tabs */}
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.categoriesContainer}
         contentContainerStyle={styles.categoriesContent}
       >
-        {categories.map((category) => (
+        {categories.map((cat) => (
           <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryTab,
-              selectedCategory === category.name && styles.categoryTabActive,
-            ]}
-            onPress={() => {
-              setSelectedCategory(category.name);
-              setSearchQuery('');
-            }}
+            key={cat._id}
+            style={[styles.categoryTab, selectedCategory === cat.name && styles.categoryTabActive]}
+            onPress={() => { setSelectedCategory(cat.name); setSearchQuery(''); }}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.categoryTabText,
-                selectedCategory === category.name && styles.categoryTabTextActive,
-              ]}
-            >
-              {category.name}
+            <Text style={[styles.categoryTabText, selectedCategory === cat.name && styles.categoryTabTextActive]}>
+              {cat.name}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#9ca3af" type="MaterialIcons" />
         <TextInput
@@ -166,24 +174,30 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
         />
       </View>
 
-      {/* Techniques List */}
-      <FlatList
-        data={filteredTechniques}
-        renderItem={renderTechniqueItem}
-        keyExtractor={(item) => item.id.toString()}
-        scrollEnabled={true}
-        contentContainerStyle={styles.listContent}
-        style={styles.list}
-      />
+      {/* List */}
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#006CB5" />
+        </View>
+      ) : filteredTechniques.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>No techniques in this category yet.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredTechniques}
+          renderItem={renderTechniqueItem}
+          keyExtractor={(item) => item._id?.toString() || item.id?.toString()}
+          contentContainerStyle={styles.listContent}
+          style={styles.list}
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
+  safeArea: { flex: 1, backgroundColor: '#f9fafb' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,115 +208,69 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
+    width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center', marginRight: spacing.md,
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1f2937',
-  },
-  headerCount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
+  headerContent: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#1f2937' },
+  headerCount: { fontSize: 14, fontWeight: '600', color: '#9ca3af' },
   categoriesContainer: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
     maxHeight: 60,
   },
-  categoriesContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
+  categoriesContent: { paddingHorizontal: 16, paddingVertical: 8 },
   categoryTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: '#e5e7eb',
-    marginRight: 10,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 18, paddingVertical: 8,
+    borderRadius: 18, backgroundColor: '#e5e7eb', marginRight: 10, alignSelf: 'flex-start',
   },
-  categoryTabActive: {
-    backgroundColor: '#1f2937',
-  },
-  categoryTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  categoryTabTextActive: {
-    color: '#fff',
-  },
+  categoryTabActive: { backgroundColor: '#1f2937' },
+  categoryTabText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  categoryTabTextActive: { color: '#fff' },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e5e7eb',
-    borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#e5e7eb', borderRadius: 12,
     paddingHorizontal: spacing.md,
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.md,
+    marginHorizontal: spacing.md, marginVertical: spacing.md,
   },
   searchInput: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    fontSize: 14,
-    color: '#1f2937',
+    flex: 1, paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm, fontSize: 14, color: '#1f2937',
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   techniqueItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 12,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
   },
-  techniqueImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginRight: spacing.md,
-    backgroundColor: '#e5e7eb',
+  techniqueImageWrapper: {
+    width: 60, height: 60, borderRadius: 10,
+    overflow: 'hidden', marginRight: spacing.md, backgroundColor: '#e5e7eb',
   },
-  techniqueImageStyle: {
-    borderRadius: 10,
+  techniqueImageStyle: { width: 60, height: 60, borderRadius: 10 },
+  imagePlaceholder: {
+    backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center',
   },
+  placeholderText: { fontSize: 24 },
   techniqueImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
-  techniqueName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    flex: 1,
+  techniqueName: { fontSize: 14, fontWeight: '600', color: '#1f2937', flex: 1 },
+  difficultyBadge: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
   },
+  easy: { backgroundColor: '#dcfce7' },
+  medium: { backgroundColor: '#fef9c3' },
+  hard: { backgroundColor: '#fee2e2' },
+  difficultyText: { fontSize: 10, fontWeight: '700', color: '#374151' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { color: '#9ca3af', fontSize: 14 },
 });
 
 export default KicksScreen;

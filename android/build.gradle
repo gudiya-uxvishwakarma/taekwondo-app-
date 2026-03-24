@@ -4,7 +4,7 @@ buildscript {
         buildToolsVersion = "34.0.0"
         minSdkVersion = 24
         compileSdkVersion = 34
-        targetSdkVersion = 34
+        targetSdkVersion = 35
         ndkVersion = "26.1.10909125"
         kotlinVersion = "1.8.22"
     }
@@ -41,6 +41,20 @@ allprojects {
             // Map the old dependency to the new one
             dependencySubstitution {
                 substitute module('com.facebook.react:react-native') using module('com.facebook.react:react-android:0.72.6')
+                // Map old support library to AndroidX
+                substitute module('com.android.support:appcompat-v7') using module('androidx.appcompat:appcompat:1.6.1')
+                substitute module('com.android.support:support-v4') using module('androidx.legacy:legacy-support-v4:1.0.0')
+                substitute module('com.android.support:recyclerview-v7') using module('androidx.recyclerview:recyclerview:1.3.0')
+            }
+        }
+    }
+}
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileSdkVersion 34
+                buildToolsVersion "34.0.0"
             }
         }
     }

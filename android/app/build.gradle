@@ -2,12 +2,18 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 def enableProguardInReleaseBuilds = false
 def jscFlavor = 'org.webkit:android-jsc:+'
 def enableHermes = false  // Keep Hermes disabled for maximum stability
 
 android {
-    namespace "com.reactnative"
+    namespace "com.cwtakarnataka"
     compileSdkVersion rootProject.ext.compileSdkVersion
     ndkVersion rootProject.ext.ndkVersion
 
@@ -18,14 +24,20 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+        }
     }
 
     defaultConfig {
-        applicationId "com.reactnative"
+        applicationId "com.cwtakarnataka"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 4
-        versionName "1.3"
+        versionName "1.0"
         
         manifestPlaceholders = [
             usesCleartextTraffic: "true"
@@ -47,8 +59,8 @@ android {
         }
         release {
             // ULTRA STABLE RELEASE CONFIGURATION - IDENTICAL TO DEBUG
-            signingConfig signingConfigs.debug
-            
+            // signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             // Make release EXACTLY like debug to prevent crashes
             debuggable false
             minifyEnabled false  // NO code minification
@@ -77,6 +89,9 @@ android {
 
     // Enhanced packaging options to prevent ALL native crashes
     packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
         // Pick first for all possible native library conflicts
         pickFirst '**/libc++_shared.so'
         pickFirst '**/libjsc.so'
@@ -157,3 +172,9 @@ dependencies {
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+
+configurations.all {
+    resolutionStrategy {
+        force "com.android.tools.build:gradle:7.4.2"
+    }
+}

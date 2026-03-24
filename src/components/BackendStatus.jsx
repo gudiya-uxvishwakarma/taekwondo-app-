@@ -14,14 +14,14 @@
 //   const checkConnection = async () => {
 //     setStatus('checking');
 //     setMessage('Checking backend connection...');
-    
+
 //     // Test main connection
 //     const result = await testBackendConnection();
-    
+
 //     // Test all connection methods
 //     const allResults = await testAllConnections();
 //     setDetailedResults(allResults);
-    
+
 //     if (result.success) {
 //       setStatus('connected');
 //       setMessage('✅ Backend connected successfully');
@@ -41,7 +41,7 @@
 
 //   const renderDetailedResults = () => {
 //     if (!detailedResults) return null;
-    
+
 //     return (
 //       <View style={styles.detailsContainer}>
 //         <Text style={styles.detailsTitle}>Connection Test Results:</Text>
@@ -67,14 +67,14 @@
 //           <Text style={styles.retryText}>Test Again</Text>
 //         </TouchableOpacity>
 //       </View>
-      
+
 //       {renderDetailedResults()}
-      
+
 //       {status === 'error' && (
 //         <View style={styles.troubleshootContainer}>
 //           <Text style={styles.troubleshootTitle}>💡 Troubleshooting:</Text>
 //           <Text style={styles.troubleshootItem}>1. Make sure backend is running: npm start</Text>
-//           <Text style={styles.troubleshootItem}>2. Check backend URL: https://taekwondo-backend-j8w4.onrender.com</Text>
+//           <Text style={styles.troubleshootItem}>2. Check backend URL: http://192.168.1.48:5000</Text>
 //           <Text style={styles.troubleshootItem}>3. Restart Metro bundler if needed</Text>
 //           <Text style={styles.troubleshootItem}>4. Check firewall settings</Text>
 //         </View>
