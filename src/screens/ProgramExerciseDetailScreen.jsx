@@ -40,15 +40,15 @@ const ProgramExerciseDetailScreen = ({ exercise, onBack, customization }) => {
 
         {/* Instructions Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{exercise?.name || 'Knee Rotation'}</Text>
+          <Text style={styles.sectionTitle}>{exercise?.name || 'Exercise'}</Text>
           
-          {[
+          {(exercise?.steps?.length > 0 ? exercise.steps : [
             'Stand with your feet shoulder-width apart.',
             'Place your hands on your hips for balance.',
             'Slowly rotate your knees in a circular motion.',
             'Change direction after a few rotations.',
             'Keep your movements controlled and steady.',
-          ].map((instruction, index) => (
+          ]).map((instruction, index) => (
             <View key={index} style={styles.instructionItem}>
               <View style={styles.instructionNumber}>
                 <Text style={styles.instructionNumberText}>{index + 1}</Text>
@@ -62,11 +62,11 @@ const ProgramExerciseDetailScreen = ({ exercise, onBack, customization }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tips to succeed</Text>
           
-          {[
+          {(exercise?.tips?.length > 0 ? exercise.tips : [
             'Keep your upper body relaxed to avoid unnecessary tension.',
             'Maintain a steady and controlled rhythm for better balance.',
             'Engage your core muscles to support smooth rotations.',
-          ].map((tip, index) => (
+          ]).map((tip, index) => (
             <View key={index} style={styles.tipItem}>
               <View style={styles.tipNumber}>
                 <Text style={styles.tipNumberText}>{index + 1}</Text>

@@ -1,10 +1,9 @@
 // API Configuration
 const API_CONFIG = {
-  BASE_URL: 'http://192.168.1.48:5000/api', // Local network IP - Primary for development
-  TIMEOUT: 30000, // 30 seconds timeout
+  BASE_URL: 'http://192.168.1.22:9000/api',
+  TIMEOUT: 50000,
   FALLBACK_URLS: [
-    'http://192.168.1.48:5000/api', // Local network IP - Primary
-    'http://10.0.2.2:5000/api', // Android emulator mapping
+    'http://192.168.1.22:9000/api',
   ],
   ENDPOINTS: {
     AUTH: {
@@ -12,6 +11,8 @@ const API_CONFIG = {
       REGISTER: '/login/register',
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',
+      SEND_OTP: '/auth/send-otp',
+      VERIFY_OTP: '/auth/verify-otp',
     },
     STUDENT: {
       PROFILE: '/auth/profile', // Profile is in auth routes, not student routes
@@ -44,6 +45,13 @@ const API_CONFIG = {
     },
     ONBOARDING: {
       LIST: '/onboarding',
+    },
+    PROGRAMS: {
+      LIST: '/programs',
+      EXERCISES: '/programs/exercises/all',
+    },
+    THEORY_QUESTIONS: {
+      LIST: '/theory-questions',
     },
   },
 };

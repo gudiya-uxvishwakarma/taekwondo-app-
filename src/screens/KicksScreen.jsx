@@ -69,13 +69,14 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
 
   const handleTechniqueClick = (technique) => {
     if (onVideoWatch) {
+      // Properly structure the video watch data with image
       onVideoWatch({
-        id: technique._id,
-        title: technique.name,
-        duration: '5 min',
-        lesson: '1/1',
-        progress: 0,
-        bgColor: '#2d3748',
+        title: technique.name || 'Technique',
+        subtitle: `${technique.category || 'Technique'} • ${technique.difficulty || 'Easy'}`,
+        type: 'kicks',
+        bgColor: '#1f2937',
+        image: technique.image ? { uri: technique.image } : null,
+        techniqueId: technique._id,
       });
     }
     setSelectedTechnique(technique);
@@ -122,18 +123,19 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
       <TechniqueDetailScreen
         technique={selectedTechnique}
         onBack={() => setSelectedTechnique(null)}
+        onVideoWatch={onVideoWatch}
       />
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
-          <Icon name="arrow-back" size={24} color="#1f2937" type="MaterialIcons" />
+          <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>{selectedCategory || 'Techniques'}</Text>
@@ -203,17 +205,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#006CB5',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center', marginRight: spacing.md,
   },
   headerContent: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#1f2937' },
-  headerCount: { fontSize: 14, fontWeight: '600', color: '#9ca3af' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  headerCount: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
   categoriesContainer: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,

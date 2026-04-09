@@ -3,9 +3,9 @@ export const testNetworkConnection = async () => {
   console.log('🧪 Testing network connectivity...');
 
   const testUrls = [
-    'http://192.168.1.48:5000/api/simple-test', // Local development IP - Original
-    'http://192.168.1.48:5000/api/simple-test', // Emulator mapping
-    'http://192.168.1.48:5000/api/simple-test', // Localhost
+    'http://192.168.1.22:9000/api/simple-test', // Local development IP - Original
+    'http://192.168.1.22:9000/api/simple-test', // Emulator mapping
+    'http://192.168.1.22:9000/api/simple-test', // Localhost
   ];
 
   for (const url of testUrls) {
@@ -37,9 +37,9 @@ export const testLogin = async credentials => {
   console.log('🔐 Testing direct login...');
 
   const testUrls = [
-    'http://192.168.1.48:5000/api/logins', // Local development IP - Original
-    'http://192.168.1.48:5000/api/logins', // Emulator mapping
-    'http://192.168.1.48:5000/api/logins', // Localhost
+    'http://192.168.1.22:9000/api/logins', // Local development IP - Original
+    'http://192.168.1.22:9000/api/logins', // Emulator mapping
+    'http://192.168.1.22:9000/api/logins', // Localhost
   ];
 
   for (const url of testUrls) {

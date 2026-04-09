@@ -41,9 +41,9 @@ class AuthService {
 
   async logout() {
     try {
-      await ApiService.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
+      // JWT is stateless — just clear the token locally, no server call needed
     } catch (error) {
-      console.error('Logout API call failed:', error);
+      // silent
     } finally {
       await removeToken();
     }

@@ -44,7 +44,7 @@ if (__DEV__) {
   console.error = () => {};
 }
 
-const AppContent = () => {
+const AppContent = ({ onRegisterGoToSelection }) => {
   const { isAuthenticated, loading, logout } = useStudent();
   const [showFlashcard, setShowFlashcard] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -99,6 +99,10 @@ const AppContent = () => {
     setSelectedType(null);
     setShowSelection(true);
   };
+
+  useEffect(() => {
+    if (onRegisterGoToSelection) onRegisterGoToSelection(() => handleBackToSelection);
+  }, []);
 
   const handlePaymentRequired = () => {
     // Show payment screen for practical syllabus
@@ -234,10 +238,11 @@ const AppContent = () => {
 function App() {
   // TEMPORARY: Uncomment below line to test icons directly
   // return <IconTestScreen />;
-  
+  const [goToSelectionFn, setGoToSelectionFn] = useState(null);
+
   return (
     <ErrorBoundary>
-      <StudentProvider>
+      <StudentProvider onGoToSelection={goToSelectionFn}>
         <View style={styles.container}>
           <StatusBar 
             barStyle="light-content" 
@@ -245,7 +250,7 @@ function App() {
             translucent={false}
             hidden={false}
           />
-          <AppContent />
+          <AppContent onRegisterGoToSelection={setGoToSelectionFn} />
         </View>
       </StudentProvider>
     </ErrorBoundary>

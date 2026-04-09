@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,9 @@ import {
 import { useStudent } from '../context/StudentContext';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
+import API_CONFIG from '../config/api';
 
-const LearnerProfileScreen = ({ onBack, onLogout }) => {
+const LearnerProfileScreen = ({ onBack, onLogout, onSwitch, canEdit = false }) => {
   const { student } = useStudent();
   const [showEditName, setShowEditName] = useState(false);
   const [showEditPhone, setShowEditPhone] = useState(false);
@@ -30,6 +31,39 @@ const LearnerProfileScreen = ({ onBack, onLogout }) => {
   const [editedBelt, setEditedBelt] = useState(student?.belt || 'Yellow Belt');
 
   const belts = ['White Belt', 'Yellow Belt', 'Green Belt', 'Blue Belt', 'Red Belt', 'Black Belt'];
+
+  // Build photo URL from student data or fetch fresh from server
+  const BASE_URL = API_CONFIG.BASE_URL.replace('/api', '');
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  useEffect(() => {
+    const loadPhoto = async () => {
+      // First try from cached student data
+      if (student?.photo) {
+        const url = student.photo.startsWith('http')
+          ? student.photo
+          : `${BASE_URL}${student.photo.startsWith('/') ? '' : '/'}${student.photo}`;
+        setPhotoUrl(url);
+        return;
+      }
+      // Fetch fresh profile from server to get latest photo
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const token = await AsyncStorage.getItem('auth_token');
+        if (!token) return;
+        const res = await fetch(`${API_CONFIG.BASE_URL}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const p = data?.data?.user?.photo;
+        if (p) {
+          const url = p.startsWith('http') ? p : `${BASE_URL}${p.startsWith('/') ? '' : '/'}${p}`;
+          setPhotoUrl(url);
+        }
+      } catch (e) { /* ignore */ }
+    };
+    loadPhoto();
+  }, [student]);
 
   const handlePhotoEdit = () => {
     Alert.alert(
@@ -76,7 +110,7 @@ const LearnerProfileScreen = ({ onBack, onLogout }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      <StatusBar barStyle="light-content" backgroundColor="#006CB5" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -85,7 +119,7 @@ const LearnerProfileScreen = ({ onBack, onLogout }) => {
           onPress={onBack}
           activeOpacity={0.7}
         >
-          <Icon name="arrow-back" size={24} color="#1f2937" type="MaterialIcons" />
+          <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={styles.headerSpacer} />
@@ -95,105 +129,131 @@ const LearnerProfileScreen = ({ onBack, onLogout }) => {
         {/* Profile Photo Section */}
         <View style={styles.profileSection}>
           <View style={styles.photoContainer}>
-            <Text style={styles.photoEmoji}>👤</Text>
-            <TouchableOpacity 
-              style={styles.cameraButton}
-              onPress={handlePhotoEdit}
-              activeOpacity={0.7}
-            >
-              <Icon name="camera-alt" size={16} color="#fff" type="MaterialIcons" />
-            </TouchableOpacity>
+            {photoUrl ? (
+              <Image
+                source={{ uri: photoUrl }}
+                style={styles.photoImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.photoEmoji}>👤</Text>
+            )}
+            {canEdit && (
+              <TouchableOpacity 
+                style={styles.cameraButton}
+                onPress={handlePhotoEdit}
+                activeOpacity={0.7}
+              >
+                <Icon name="camera-alt" size={16} color="#fff" type="MaterialIcons" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
         {/* Profile Info Section */}
         <View style={styles.infoSection}>
           {/* Name */}
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => setShowEditName(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.infoLeft}>
-              <Icon name="person" size={24} color="#1f2937" type="MaterialIcons" />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Name</Text>
-                <Text style={styles.infoValue}>{student?.name || 'Not set'}</Text>
+          {canEdit ? (
+            <TouchableOpacity style={styles.infoRow} onPress={() => setShowEditName(true)} activeOpacity={0.7}>
+              <View style={styles.infoLeft}>
+                <Icon name="person" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Name</Text>
+                  <Text style={styles.infoValue}>{student?.name || 'Not set'}</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Icon name="person" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Name</Text>
+                  <Text style={styles.infoValue}>{student?.name || 'Not set'}</Text>
+                </View>
               </View>
             </View>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+          )}
 
           {/* Phone */}
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => setShowEditPhone(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.infoLeft}>
-              <Icon name="phone" size={24} color="#1f2937" type="MaterialIcons" />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Phone</Text>
-                <Text style={styles.infoValue}>{student?.phone || 'Not set'}</Text>
+          {canEdit ? (
+            <TouchableOpacity style={styles.infoRow} onPress={() => setShowEditPhone(true)} activeOpacity={0.7}>
+              <View style={styles.infoLeft}>
+                <Icon name="phone" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Phone</Text>
+                  <Text style={styles.infoValue}>{student?.phone || 'Not set'}</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Icon name="phone" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Phone</Text>
+                  <Text style={styles.infoValue}>{student?.phone || 'Not set'}</Text>
+                </View>
               </View>
             </View>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+          )}
 
           {/* Email */}
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => setShowEditEmail(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.infoLeft}>
-              <Icon name="email" size={24} color="#1f2937" type="MaterialIcons" />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{student?.email || 'Not set'}</Text>
+          {canEdit ? (
+            <TouchableOpacity style={styles.infoRow} onPress={() => setShowEditEmail(true)} activeOpacity={0.7}>
+              <View style={styles.infoLeft}>
+                <Icon name="email" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{student?.email || 'Not set'}</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Icon name="email" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{student?.email || 'Not set'}</Text>
+                </View>
               </View>
             </View>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+          )}
 
           {/* Belt */}
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => setShowEditBelt(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.infoLeft}>
-              <Icon name="star" size={24} color="#1f2937" type="MaterialIcons" />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Belt Level</Text>
-                <Text style={styles.infoValue}>{editedBelt}</Text>
+          {canEdit ? (
+            <TouchableOpacity style={styles.infoRow} onPress={() => setShowEditBelt(true)} activeOpacity={0.7}>
+              <View style={styles.infoLeft}>
+                <Icon name="star" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Belt Level</Text>
+                  <Text style={styles.infoValue}>{editedBelt}</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Icon name="star" size={24} color="#1f2937" type="MaterialIcons" />
+                <View style={styles.infoText}>
+                  <Text style={styles.infoLabel}>Belt Level</Text>
+                  <Text style={styles.infoValue}>{student?.belt || editedBelt}</Text>
+                </View>
               </View>
             </View>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+          )}
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionSection}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowHelpSupport(true)}
-            activeOpacity={0.7}
-          >
-            <Icon name="help" size={24} color="#1f2937" type="MaterialIcons" />
-            <Text style={styles.actionButtonText}>Help & Support</Text>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+         
 
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowPrivacyPolicy(true)}
-            activeOpacity={0.7}
-          >
-            <Icon name="privacy-tip" size={24} color="#1f2937" type="MaterialIcons" />
-            <Text style={styles.actionButtonText}>Privacy Policy</Text>
-            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
+        
 
           <TouchableOpacity 
             style={[styles.actionButton, styles.logoutButton]}
@@ -202,6 +262,16 @@ const LearnerProfileScreen = ({ onBack, onLogout }) => {
           >
             <Icon name="logout" size={24} color="#ef4444" type="MaterialIcons" />
             <Text style={[styles.actionButtonText, styles.logoutText]}>Logout</Text>
+            <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.switchButton]}
+            onPress={onSwitch}
+            activeOpacity={0.7}
+          >
+            <Icon name="swap-horiz" size={24} color={colors.primary} type="MaterialIcons" />
+            <Text style={[styles.actionButtonText, styles.switchText]}>Switch Screen</Text>
             <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
           </TouchableOpacity>
         </View>
@@ -559,9 +629,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#006CB5',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40,
@@ -573,7 +642,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#fff',
   },
   headerSpacer: {
     width: 40,
@@ -591,18 +660,22 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    overflow: 'hidden',
     elevation: 4,
   },
   photoEmoji: {
     fontSize: 60,
   },
+  photoImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+    height: 120,
+    borderRadius: 60,
   cameraButton: {
     position: 'absolute',
     bottom: 0,
@@ -688,6 +761,12 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#ef4444',
+  },
+  switchButton: {
+    marginTop: spacing.sm,
+  },
+  switchText: {
+    color: colors.primary,
   },
   modalOverlay: {
     flex: 1,

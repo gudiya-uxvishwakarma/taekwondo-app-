@@ -7,156 +7,100 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  ImageBackground,
+  Image,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import ExercisesReviewScreen from './ExercisesReviewScreen';
 import ExerciseDetailScreen from './ExerciseDetailScreen';
 import ExerciseVideoPlayerScreen from './ExerciseVideoPlayerScreen';
+import API_CONFIG from '../config/api';
 
 const BeltDetailScreen = ({ belt, onBack }) => {
   const [showCustomization, setShowCustomization] = React.useState(false);
   const [showLevelPicker, setShowLevelPicker] = React.useState(false);
-  const [showDurationPicker, setShowDurationPicker] = React.useState(false);
-  const [showRestTimePicker, setShowRestTimePicker] = React.useState(false);
-  const [showWorkTimePicker, setShowWorkTimePicker] = React.useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = React.useState(false);
   const [showExercises, setShowExercises] = React.useState(false);
   const [showVideoPlayer, setShowVideoPlayer] = React.useState(false);
   const [selectedExercise, setSelectedExercise] = React.useState(null);
+  const [totalExercises, setTotalExercises] = React.useState(0);
+  const [completedExercises, setCompletedExercises] = React.useState(0);
+  const [beltExerciseList, setBeltExerciseList] = React.useState([]);
   const [customization, setCustomization] = React.useState({
     level: 'Easy',
-    duration: '20 min',
     warmUp: true,
     stretching: true,
-    restTime: '10 sec',
-    workTime: '25 sec',
     equipment: 'With Chair',
   });
 
+  const beltKey = `belt_progress_${belt?.belt || belt?.title || 'unknown'}`;
+
+  // Fetch total exercises and load saved progress
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/exercises`);
+        const json = await res.json();
+        const list = json?.data?.exercises || [];
+        const beltName = belt?.belt || belt?.title || '';
+        const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
+
+        const filtered = list.filter(ex => !ex.beltName || ex.beltName === beltName);
+        setTotalExercises(filtered.length);
+
+        const mapped = filtered.map((ex, i) => ({
+          id: ex._id || i,
+          _id: ex._id,
+          name: ex.name,
+          level: ex.level,
+          section: ex.section,
+          equipment: ex.equipment,
+          steps: ex.steps || [],
+          tips: ex.tips || [],
+          videoUrl: ex.videoUrl
+            ? (ex.videoUrl.startsWith('http') ? ex.videoUrl : `${serverBase}/${ex.videoUrl}`)
+            : null,
+          image: ex.image
+            ? { uri: ex.image.startsWith('http') ? ex.image : `${serverBase}/${ex.image}` }
+            : { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop' },
+        }));
+        setBeltExerciseList(mapped);
+
+        const saved = await AsyncStorage.getItem(beltKey);
+        if (saved) setCompletedExercises(parseInt(saved, 10) || 0);
+      } catch (_) {}
+    };
+    load();
+  }, [beltKey]);
+
+  const handleExerciseCompleted = React.useCallback(async () => {
+    setCompletedExercises(prev => {
+      const next = Math.min(prev + 1, totalExercises);
+      AsyncStorage.setItem(beltKey, String(next));
+      return next;
+    });
+  }, [beltKey, totalExercises]);
+
+  const progressPercent = totalExercises > 0
+    ? Math.round((completedExercises / totalExercises) * 100)
+    : 0;
+
   const levels = [
     { name: 'Easy', description: 'Improve fundamentals, balance and movement control' },
-    { name: 'Normal', description: 'Refine technique with smooth and controlled combinations' },
-    { name: 'Advanced', description: 'Push technique to a higher performance level' },
-    { name: 'Expert', description: 'Master advanced combinations and fight rhythm' },
+    { name: 'Advance', description: 'Refine technique with smooth and controlled combinations' },
     { name: 'Master', description: 'Train at the highest technical and physical level' },
   ];
 
-  const durations = ['5 min', '8 min', '10 min', '12 min', '15 min', '18 min', '20 min', '25 min', '30 min', '40 min', '45 min', '60 min'];
-
-  const restTimes = ['No rest', '5 sec', '10 sec', '15 sec', '20 sec', '30 sec', '40 sec', '45 sec', '60 sec'];
-
-  const workTimes = ['10 sec', '15 sec', '20 sec', '25 sec', '30 sec', '40 sec', '45 sec', '60 sec', '90 sec', '120 sec'];
-
   const equipmentOptions = ['With Chair', 'No Chair'];
 
-  // Parse duration to seconds
-  const parseDuration = (durationStr) => {
-    const match = durationStr?.match(/(\d+)/);
-    if (!match) return 300;
-    const minutes = parseInt(match[1]);
-    return minutes * 60;
-  };
-
-  // Parse work time to seconds
-  const parseWorkTime = (workTimeStr) => {
-    const match = workTimeStr?.match(/(\d+)/);
-    if (!match) return 25;
-    return parseInt(match[1]);
-  };
-
-  // Parse rest time to seconds
-  const parseRestTime = (restTimeStr) => {
-    const match = restTimeStr?.match(/(\d+)/);
-    if (!match) return 10;
-    return parseInt(match[1]);
-  };
-
-  const totalDurationSeconds = parseDuration(customization?.duration || '20 min');
-  const workTimeSeconds = parseWorkTime(customization?.workTime || '25 sec');
-  const restTimeSeconds = parseRestTime(customization?.restTime || '10 sec');
-  
-  const cycleTime = workTimeSeconds + restTimeSeconds;
-  const totalExercises = Math.floor(totalDurationSeconds / cycleTime);
-  
   const visibleSections = [];
   if (customization?.warmUp !== false) visibleSections.push('warmUp');
   visibleSections.push('training');
   if (customization?.stretching !== false) visibleSections.push('stretching');
-  
-  const exercisesPerSection = Math.floor(totalExercises / visibleSections.length);
 
-  const generateExercises = (baseExercises, count) => {
-    const result = [];
-    for (let i = 0; i < count; i++) {
-      const baseExercise = baseExercises[i % baseExercises.length];
-      result.push({
-        ...baseExercise,
-        id: i + 1,
-      });
-    }
-    return result;
-  };
-
-  const baseExercises = {
-    warmUp: [
-      { name: 'Standing Split', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Jumping Jack X', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Arm Circles', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { name: 'Leg Swings', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Chair Squats', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Chair Dips', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-    ],
-    training: [
-      { name: 'Inside-Out Kick - Both Sides', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { name: 'Front Kick', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Side Kick', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Chair Kick Hold', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { name: 'Chair Balance Kick', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Standing Kick Combo', equipment: 'noChair', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Roundhouse Kick', equipment: 'noChair', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-    ],
-    stretching: [
-      { name: 'Standing Split Alternate Arms to Leg', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { name: 'Standing Split Elbows on Floor', equipment: 'all', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Standing Split Arms to Floor', equipment: 'noChair', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Chair Hamstring Stretch', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-      { name: 'Chair Hip Stretch', equipment: 'chair', image: { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=100&h=100&fit=crop' } },
-      { name: 'Floor Quad Stretch', equipment: 'noChair', image: { uri: 'https://images.unsplash.com/photo-1552821206-e4c40ea199e8?w=100&h=100&fit=crop' } },
-      { name: 'Floor Hamstring Stretch', equipment: 'noChair', image: { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' } },
-    ],
-  };
-
-  const filterExercisesByEquipment = (baseExercises, equipment) => {
-    return baseExercises.filter(ex => {
-      if (equipment === 'With Chair') {
-        return ex.equipment === 'chair' || ex.equipment === 'all';
-      } else if (equipment === 'No Chair') {
-        return ex.equipment === 'noChair' || ex.equipment === 'all';
-      }
-      return true;
-    });
-  };
-
-  const filteredBaseExercises = {
-    warmUp: filterExercisesByEquipment(baseExercises.warmUp, customization?.equipment || 'With Chair'),
-    training: filterExercisesByEquipment(baseExercises.training, customization?.equipment || 'With Chair'),
-    stretching: filterExercisesByEquipment(baseExercises.stretching, customization?.equipment || 'With Chair'),
-  };
-
-  const exercises = {
-    warmUp: generateExercises(filteredBaseExercises.warmUp, exercisesPerSection),
-    training: generateExercises(filteredBaseExercises.training, exercisesPerSection),
-    stretching: generateExercises(filteredBaseExercises.stretching, exercisesPerSection),
-  };
-
-  // Flatten all exercises for video player
-  const allExercises = [];
-  if (customization?.warmUp !== false) allExercises.push(...exercises.warmUp);
-  allExercises.push(...exercises.training);
-  if (customization?.stretching !== false) allExercises.push(...exercises.stretching);
+  const allExercises = beltExerciseList;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -167,6 +111,7 @@ const BeltDetailScreen = ({ belt, onBack }) => {
           exercise={selectedExercise}
           onBack={() => setSelectedExercise(null)}
           customization={customization}
+          onVideoCompleted={handleExerciseCompleted}
         />
       ) : showExercises ? (
         <Modal
@@ -186,6 +131,7 @@ const BeltDetailScreen = ({ belt, onBack }) => {
               <ExercisesReviewScreen 
                 onBack={() => setShowExercises(false)}
                 customization={customization}
+                beltName={belt?.belt || belt?.title || ''}
                 onSelectExercise={(exercise) => {
                   setSelectedExercise(exercise);
                   setShowExercises(false);
@@ -198,6 +144,9 @@ const BeltDetailScreen = ({ belt, onBack }) => {
         <ExerciseVideoPlayerScreen 
           exercises={allExercises}
           onBack={() => setShowVideoPlayer(false)}
+          customization={customization}
+          beltName={belt?.belt || belt?.title || ''}
+          onExerciseCompleted={handleExerciseCompleted}
         />
       ) : (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -208,13 +157,14 @@ const BeltDetailScreen = ({ belt, onBack }) => {
 
         {/* Card Section */}
         <View style={styles.cardContainer}>
-          <ImageBackground
-            source={{ uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=400&h=300&fit=crop' }}
-            style={styles.cardImage}
-            imageStyle={styles.cardImageStyle}
-          >
-            <View style={styles.cardOverlay} />
-            
+          <Image
+            source={belt?.imageUri ? { uri: belt.imageUri } : { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=800&h=600&fit=crop&crop=top' }}
+            style={styles.cardBgImage}
+            resizeMode="cover"
+          />
+          <View style={styles.cardOverlay} />
+
+          <View style={styles.cardImage}>
             <View style={styles.cardContent}>
               <View style={styles.cardTextSection}>
                 <Text style={styles.beltTitle}>{belt.belt}</Text>
@@ -226,28 +176,19 @@ const BeltDetailScreen = ({ belt, onBack }) => {
 
               <View style={styles.cardProgressSection}>
                 <View style={styles.progressRow}>
-                  <Text style={styles.progressLabel}>Lesson 1 / {belt.lessons}</Text>
-                  <Text style={styles.progressPercent}>0% COMPLETE</Text>
+                  <Text style={styles.progressLabel}>Lesson {completedExercises} / {totalExercises}</Text>
+                  <Text style={styles.progressPercent}>{progressPercent}% COMPLETE</Text>
                 </View>
                 <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${belt.progress}%` },
-                    ]}
-                  />
+                  <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
                 </View>
               </View>
             </View>
-          </ImageBackground>
+          </View>
         </View>
 
-        {/* Duration and Level */}
+        {/* Level */}
         <View style={styles.infoSection}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>DURATION</Text>
-            <Text style={styles.infoValue}>{customization.duration}</Text>
-          </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>LEVEL</Text>
             <Text style={styles.infoValue}>{customization.level}</Text>
@@ -307,7 +248,7 @@ const BeltDetailScreen = ({ belt, onBack }) => {
             </View>
 
             <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {/* Level and Duration Row */}
+              {/* Level Row */}
               <View style={styles.customRow}>
                 <TouchableOpacity 
                   style={[styles.customOption, { flex: 1 }]}
@@ -317,18 +258,6 @@ const BeltDetailScreen = ({ belt, onBack }) => {
                   <Text style={styles.customLabel}>LEVEL</Text>
                   <View style={styles.customValueRow}>
                     <Text style={styles.customValue}>{customization.level}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowDurationPicker(true)}
-                >
-                  <Text style={styles.customLabel}>DURATION</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.duration}</Text>
                     <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
                   </View>
                 </TouchableOpacity>
@@ -356,32 +285,6 @@ const BeltDetailScreen = ({ belt, onBack }) => {
                   <View style={styles.customValueRow}>
                     <Text style={styles.customValue}>{customization.stretching ? 'Yes' : 'No'}</Text>
                     <View style={[styles.toggle, customization.stretching && styles.toggleActive]} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Rest Time and Work Time Row */}
-              <View style={styles.customRow}>
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowRestTimePicker(true)}
-                >
-                  <Text style={styles.customLabel}>REST TIME</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.restTime}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowWorkTimePicker(true)}
-                >
-                  <Text style={styles.customLabel}>WORK TIME</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.workTime}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
                   </View>
                 </TouchableOpacity>
               </View>
@@ -465,168 +368,6 @@ const BeltDetailScreen = ({ belt, onBack }) => {
         </View>
       </Modal>
 
-      {/* Duration Picker Modal */}
-      <Modal
-        visible={showDurationPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDurationPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowDurationPicker(false)}
-          />
-          
-          <View style={styles.durationPickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Change your workout duration</Text>
-              <TouchableOpacity 
-                onPress={() => setShowDurationPicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.durationPickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.durationGrid}>
-                {durations.map((duration, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.durationOption,
-                      customization.duration === duration && styles.durationOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, duration });
-                      setShowDurationPicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.durationText,
-                      customization.duration === duration && styles.durationTextActive,
-                    ]}>
-                      {duration}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Rest Time Picker Modal */}
-      <Modal
-        visible={showRestTimePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowRestTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowRestTimePicker(false)}
-          />
-          
-          <View style={styles.restTimePickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Change your rest time between each exercise</Text>
-              <TouchableOpacity 
-                onPress={() => setShowRestTimePicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.restTimePickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.restTimeGrid}>
-                {restTimes.map((time, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.restTimeOption,
-                      customization.restTime === time && styles.restTimeOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, restTime: time });
-                      setShowRestTimePicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.restTimeText,
-                      customization.restTime === time && styles.restTimeTextActive,
-                    ]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Work Time Picker Modal */}
-      <Modal
-        visible={showWorkTimePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowWorkTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowWorkTimePicker(false)}
-          />
-          
-          <View style={styles.workTimePickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Choose the duration for each exercise</Text>
-              <TouchableOpacity 
-                onPress={() => setShowWorkTimePicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.workTimePickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.workTimeGrid}>
-                {workTimes.map((time, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.workTimeOption,
-                      customization.workTime === time && styles.workTimeOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, workTime: time });
-                      setShowWorkTimePicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.workTimeText,
-                      customization.workTime === time && styles.workTimeTextActive,
-                    ]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       {/* Equipment Picker Modal */}
       <Modal
         visible={showEquipmentPicker}
@@ -702,15 +443,15 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
   cardContainer: {
     marginTop: spacing.sm,
     marginBottom: spacing.md,
+    marginHorizontal: spacing.md,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#000',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -718,20 +459,22 @@ const styles = StyleSheet.create({
     elevation: 5,
     position: 'relative',
   },
+  cardBgImage: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
   cardImage: {
     width: '100%',
-    height: 300,
+    height: 360,
     justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
   },
-  cardImageStyle: {
-    borderRadius: 24,
-  },
   cardOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    borderRadius: 24,
   },
   cardContent: {
     zIndex: 1,

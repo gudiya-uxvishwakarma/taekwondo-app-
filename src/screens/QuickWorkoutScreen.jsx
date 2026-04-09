@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,201 +9,89 @@ import {
   StatusBar,
   ImageBackground,
   Modal,
-  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import QuickWorkoutTrainingScreen from './QuickWorkoutTrainingScreen';
+import API_CONFIG from '../config/api';
 
 const QuickWorkoutScreen = ({ onBack }) => {
-  const [selectedProgram, setSelectedProgram] = useState({
-    id: 'p2',
-    title: 'Kicks Mastery',
-    description: 'unlock the secrets to perfecting your kicks',
-    duration: 25,
-    type: 'program',
-  });
+  const [selectedProgram, setSelectedProgram] = useState(null);
+  const [belts, setBelts] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [loadingSelector, setLoadingSelector] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
   const [showTraining, setShowTraining] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
   const [showLevelPicker, setShowLevelPicker] = useState(false);
-  const [showDurationPicker, setShowDurationPicker] = useState(false);
-  const [showRestTimePicker, setShowRestTimePicker] = useState(false);
-  const [showWorkTimePicker, setShowWorkTimePicker] = useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
-  const [showKicks, setShowKicks] = useState(false);
   const [customization, setCustomization] = useState({
     level: 'Easy',
-    duration: '5 min',
     warmUp: true,
     stretching: true,
-    restTime: '10 sec',
-    workTime: '20 sec',
-    equipment: 'No Chair',
+    equipment: 'With Chair',
   });
 
-  // Animation for rotating blue dot
-  const rotationAnim = useRef(new Animated.Value(0)).current;
+  const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
 
+  const getImageSource = (img) => {
+    if (!img) return { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=400&h=500&fit=crop' };
+    return { uri: img.startsWith('http') ? img : `${serverBase}/${img}` };
+  };
+
+  // Fetch belts and programs when selector opens
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(rotationAnim, {
-        toValue: 360,
-        duration: 8000, // 8 seconds for full rotation
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [rotationAnim]);
+    if (!showSelector) return;
+    const fetchData = async () => {
+      try {
+        setLoadingSelector(true);
+        const [beltRes, progRes] = await Promise.all([
+          fetch(`${API_CONFIG.BASE_URL}/belt-content`),
+          fetch(`${API_CONFIG.BASE_URL}/programs`),
+        ]);
+        const beltJson = await beltRes.json();
+        const progJson = await progRes.json();
+
+        const mappedBelts = (beltJson?.data?.belts || []).map((b) => ({
+          _id: b._id,
+          title: b.beltName,
+          type: 'belt',
+          image: getImageSource(b.image),
+        }));
+
+        const mappedPrograms = (progJson?.data?.programs || []).map((p) => ({
+          _id: p._id,
+          title: p.title,
+          type: 'program',
+          image: getImageSource(p.image),
+        }));
+
+        setBelts(mappedBelts);
+        setPrograms(mappedPrograms);
+
+        // Auto-select first item if nothing selected yet
+        if (!selectedProgram && mappedPrograms.length > 0) {
+          setSelectedProgram(mappedPrograms[0]);
+        }
+      } catch (err) {
+        console.log('Failed to fetch belts/programs:', err.message);
+      } finally {
+        setLoadingSelector(false);
+      }
+    };
+    fetchData();
+  }, [showSelector]);
 
   const levels = [
     { name: 'Easy', description: 'Improve fundamentals, balance and movement control' },
-    { name: 'Normal', description: 'Refine technique with smooth and controlled combinations' },
-    { name: 'Advanced', description: 'Push technique to a higher performance level' },
-    { name: 'Expert', description: 'Master advanced combinations and fight rhythm' },
+    { name: 'Advance', description: 'Refine technique with smooth and controlled combinations' },
     { name: 'Master', description: 'Train at the highest technical and physical level' },
   ];
 
-  const durations = ['5 min', '8 min', '10 min', '12 min', '15 min', '18 min', '20 min', '25 min', '30 min', '40 min', '45 min', '60 min'];
-
-  const restTimes = ['No rest', '5 sec', '10 sec', '15 sec', '20 sec', '30 sec', '40 sec', '45 sec', '60 sec'];
-
-  const workTimes = ['10 sec', '15 sec', '20 sec', '25 sec', '30 sec', '40 sec', '45 sec', '60 sec', '90 sec', '120 sec'];
-
   const equipmentOptions = ['With Chair', 'No Chair'];
 
-  // Fixed background image
-  const BACKGROUND_IMAGE = { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=400&h=500&fit=crop' };
-
-  const belts = [
-    {
-      id: 'b1',
-      title: 'White Belt',
-      lessons: '30',
-      duration: 20,
-      type: 'belt',
-    },
-    {
-      id: 'b2',
-      title: 'Yellow Belt',
-      lessons: '30',
-      duration: 20,
-      type: 'belt',
-    },
-    {
-      id: 'b3',
-      title: 'Green Belt',
-      lessons: '30',
-      duration: 25,
-      type: 'belt',
-    },
-    {
-      id: 'b4',
-      title: 'Blue Belt',
-      lessons: '30',
-      duration: 25,
-      type: 'belt',
-    },
-    {
-      id: 'b5',
-      title: 'Red Belt',
-      lessons: '30',
-      duration: 25,
-      type: 'belt',
-    },
-    {
-      id: 'b6',
-      title: 'Black Belt',
-      lessons: '30',
-      duration: 30,
-      type: 'belt',
-    },
-  ];
-
-  const programs = [
-    {
-      id: 'p1',
-      title: 'Basic Kicks',
-      lessons: '20',
-      duration: 20,
-      type: 'program',
-    },
-    {
-      id: 'p2',
-      title: 'Kicks Mastery',
-      lessons: '20',
-      duration: 25,
-      type: 'program',
-    },
-    {
-      id: 'p3',
-      title: 'Expert Kicks',
-      lessons: '20',
-      duration: 30,
-      type: 'program',
-    },
-    {
-      id: 'p4',
-      title: 'Explosive Kicks',
-      lessons: '18',
-      duration: 28,
-      type: 'program',
-    },
-    {
-      id: 'p5',
-      title: 'Combo Junkies',
-      lessons: '20',
-      duration: 15,
-      type: 'program',
-    },
-    {
-      id: 'p6',
-      title: 'Punches & Blocks',
-      lessons: '30',
-      duration: 20,
-      type: 'program',
-    },
-    {
-      id: 'p7',
-      title: 'Lightning Speed',
-      lessons: '25',
-      duration: 22,
-      type: 'program',
-    },
-    {
-      id: 'p8',
-      title: 'Flexibility Training',
-      lessons: '15',
-      duration: 20,
-      type: 'program',
-    },
-    {
-      id: 'p9',
-      title: 'Recovery Routine',
-      lessons: '10',
-      duration: 15,
-      type: 'program',
-    },
-    {
-      id: 'p10',
-      title: 'Cool Down',
-      lessons: '8',
-      duration: 10,
-      type: 'program',
-    },
-  ];
-
-  const allPrograms = [...belts, ...programs];
-
-  const getProgressRotation = (duration) => {
-    // Parse duration string to get minutes
-    const match = duration?.match(/(\d+)/);
-    if (!match) return 0;
-    const minutes = parseInt(match[1]);
-    // Calculate rotation based on duration (max 60 minutes = 360 degrees)
-    return (minutes / 60) * 360;
-  };
+  const BACKGROUND_IMAGE = selectedProgram?.image || { uri: 'https://images.unsplash.com/photo-1517836357463-d25ddfcbf042?w=400&h=500&fit=crop' };
 
   // Show training screen
   if (showTraining) {
@@ -236,91 +124,64 @@ const QuickWorkoutScreen = ({ onBack }) => {
         </View>
 
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-          {/* Belts Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>BELTS</Text>
-            {belts.map((belt) => (
-              <TouchableOpacity
-                key={belt.id}
-                style={[
-                  styles.programCard,
-                  selectedProgram.id === belt.id && styles.programCardSelected
-                ]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedProgram(belt);
-                  setShowSelector(false);
-                }}
-              >
-                <Text style={[
-                  styles.programTitle,
-                  selectedProgram.id === belt.id && styles.programTitleSelected
-                ]}>
-                  {belt.title}
-                </Text>
-                <Text style={[
-                  styles.programMeta,
-                  selectedProgram.id === belt.id && styles.programMetaSelected
-                ]}>
-                  {belt.lessons} lessons • {belt.duration} min
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {loadingSelector ? (
+            <ActivityIndicator size="large" color="#1f2937" style={{ marginTop: 40 }} />
+          ) : (
+            <>
+              {/* Belts Section */}
+              {belts.length > 0 && (
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.sectionHeader}>BELTS</Text>
+                  {belts.map((belt) => (
+                    <TouchableOpacity
+                      key={belt._id}
+                      style={[
+                        styles.programCard,
+                        selectedProgram?._id === belt._id && styles.programCardSelected,
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => { setSelectedProgram(belt); setShowSelector(false); }}
+                    >
+                      <Text style={[styles.programTitle, selectedProgram?._id === belt._id && styles.programTitleSelected]}>
+                        {belt.title}
+                      </Text>
+                      <Text style={[styles.programMeta, selectedProgram?._id === belt._id && styles.programMetaSelected]}>
+                        Belt Training
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
-          {/* Programs Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>PROGRAMS</Text>
-            {programs.map((program) => (
-              <TouchableOpacity
-                key={program.id}
-                style={[
-                  styles.programCard,
-                  selectedProgram.id === program.id && styles.programCardSelected
-                ]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedProgram(program);
-                  setShowSelector(false);
-                }}
-              >
-                <Text style={[
-                  styles.programTitle,
-                  selectedProgram.id === program.id && styles.programTitleSelected
-                ]}>
-                  {program.title}
-                </Text>
-                <Text style={[
-                  styles.programMeta,
-                  selectedProgram.id === program.id && styles.programMetaSelected
-                ]}>
-                  {program.lessons} lessons • {program.duration} min
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
+              {/* Programs Section */}
+              {programs.length > 0 && (
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.sectionHeader}>PROGRAMS</Text>
+                  {programs.map((program) => (
+                    <TouchableOpacity
+                      key={program._id}
+                      style={[
+                        styles.programCard,
+                        selectedProgram?._id === program._id && styles.programCardSelected,
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => { setSelectedProgram(program); setShowSelector(false); }}
+                    >
+                      <Text style={[styles.programTitle, selectedProgram?._id === program._id && styles.programTitleSelected]}>
+                        {program.title}
+                      </Text>
+                      <Text style={[styles.programMeta, selectedProgram?._id === program._id && styles.programMetaSelected]}>
+                        Program
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
           <View style={styles.footerSpace} />
         </ScrollView>
 
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNavigation}>
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={onBack}>
-            <Icon name="home" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="schedule" size={28} color={colors.primary} type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="menu" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="person" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
     );
   }
@@ -346,40 +207,15 @@ const QuickWorkoutScreen = ({ onBack }) => {
           <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
         </TouchableOpacity>
 
-        <ScrollView style={styles.workoutContent} showsVerticalScrollIndicator={false}>
-          {/* Timer Circle */}
-          <View style={styles.timerContainer}>
-            <View style={styles.timerCircle}>
-              {/* Background Circle */}
-              <View style={styles.timerBackground} />
-              
-              {/* Progress Indicator - Blue dot that rotates */}
-              <Animated.View 
-                style={[
-                  styles.timerProgressDot,
-                  { 
-                    transform: [{ 
-                      rotate: rotationAnim.interpolate({
-                        inputRange: [0, 360],
-                        outputRange: ['0deg', '360deg'],
-                      })
-                    }]
-                  }
-                ]}
-              />
-              
-              {/* Center Content */}
-              <View style={styles.timerInner}>
-                <Text style={styles.timerNumber}>{customization.duration.match(/\d+/)[0]}</Text>
-                <Text style={styles.timerLabel}>minutes</Text>
-              </View>
-            </View>
-          </View>
-
+        <ScrollView 
+          style={styles.workoutContent} 
+          contentContainerStyle={styles.workoutContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Title Section */}
           <View style={styles.titleSection}>
             <Text style={styles.subtitle}>Let's start a quick workout</Text>
-            <Text style={styles.title}>{selectedProgram.title}</Text>
+            <Text style={styles.title}>{selectedProgram?.title || 'Select a program'}</Text>
           </View>
 
           {/* Buttons */}
@@ -403,9 +239,9 @@ const QuickWorkoutScreen = ({ onBack }) => {
 
           {/* Start Training Button */}
           <TouchableOpacity 
-            style={styles.startButton} 
+            style={[styles.startButton, !selectedProgram && styles.startButtonDisabled]} 
             activeOpacity={0.8}
-            onPress={() => setShowTraining(true)}
+            onPress={() => selectedProgram && setShowTraining(true)}
           >
             <Text style={styles.startButtonText}>START TRAINING</Text>
             <Icon name="play-arrow" size={20} color="#1f2937" type="MaterialIcons" />
@@ -414,24 +250,6 @@ const QuickWorkoutScreen = ({ onBack }) => {
           <View style={styles.footerSpace} />
         </ScrollView>
 
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNavigation}>
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={onBack}>
-            <Icon name="home" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="schedule" size={28} color={colors.primary} type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="menu" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Icon name="person" size={28} color="#9ca3af" type="MaterialIcons" />
-          </TouchableOpacity>
-        </View>
       </ImageBackground>
 
       {/* Customization Modal */}
@@ -462,7 +280,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
             </View>
 
             <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {/* Level and Duration Row */}
+              {/* Level Row */}
               <View style={styles.customRow}>
                 <TouchableOpacity 
                   style={[styles.customOption, { flex: 1 }]}
@@ -472,18 +290,6 @@ const QuickWorkoutScreen = ({ onBack }) => {
                   <Text style={styles.customLabel}>LEVEL</Text>
                   <View style={styles.customValueRow}>
                     <Text style={styles.customValue}>{customization.level}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowDurationPicker(true)}
-                >
-                  <Text style={styles.customLabel}>DURATION</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.duration}</Text>
                     <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
                   </View>
                 </TouchableOpacity>
@@ -511,32 +317,6 @@ const QuickWorkoutScreen = ({ onBack }) => {
                   <View style={styles.customValueRow}>
                     <Text style={styles.customValue}>{customization.stretching ? 'Yes' : 'No'}</Text>
                     <View style={[styles.toggle, customization.stretching && styles.toggleActive]} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Rest Time and Work Time Row */}
-              <View style={styles.customRow}>
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowRestTimePicker(true)}
-                >
-                  <Text style={styles.customLabel}>REST TIME</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.restTime}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.customOption, { flex: 1 }]}
-                  activeOpacity={0.7}
-                  onPress={() => setShowWorkTimePicker(true)}
-                >
-                  <Text style={styles.customLabel}>WORK TIME</Text>
-                  <View style={styles.customValueRow}>
-                    <Text style={styles.customValue}>{customization.workTime}</Text>
-                    <Icon name="chevron-right" size={16} color="#9ca3af" type="MaterialIcons" />
                   </View>
                 </TouchableOpacity>
               </View>
@@ -615,168 +395,6 @@ const QuickWorkoutScreen = ({ onBack }) => {
                   </View>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Duration Picker Modal */}
-      <Modal
-        visible={showDurationPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDurationPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowDurationPicker(false)}
-          />
-          
-          <View style={styles.durationPickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Change your workout duration</Text>
-              <TouchableOpacity 
-                onPress={() => setShowDurationPicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.durationPickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.durationGrid}>
-                {durations.map((duration, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.durationOption,
-                      customization.duration === duration && styles.durationOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, duration });
-                      setShowDurationPicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.durationText,
-                      customization.duration === duration && styles.durationTextActive,
-                    ]}>
-                      {duration}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Rest Time Picker Modal */}
-      <Modal
-        visible={showRestTimePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowRestTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowRestTimePicker(false)}
-          />
-          
-          <View style={styles.restTimePickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Change your rest time between each exercise</Text>
-              <TouchableOpacity 
-                onPress={() => setShowRestTimePicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.restTimePickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.restTimeGrid}>
-                {restTimes.map((time, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.restTimeOption,
-                      customization.restTime === time && styles.restTimeOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, restTime: time });
-                      setShowRestTimePicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.restTimeText,
-                      customization.restTime === time && styles.restTimeTextActive,
-                    ]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Work Time Picker Modal */}
-      <Modal
-        visible={showWorkTimePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowWorkTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowWorkTimePicker(false)}
-          />
-          
-          <View style={styles.workTimePickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Choose the duration for each exercise</Text>
-              <TouchableOpacity 
-                onPress={() => setShowWorkTimePicker(false)}
-                activeOpacity={0.7}
-              >
-                <Icon name="close" size={24} color="#1f2937" type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.workTimePickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.workTimeGrid}>
-                {workTimes.map((time, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.workTimeOption,
-                      customization.workTime === time && styles.workTimeOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setCustomization({ ...customization, workTime: time });
-                      setShowWorkTimePicker(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.workTimeText,
-                      customization.workTime === time && styles.workTimeTextActive,
-                    ]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </ScrollView>
           </View>
         </View>
@@ -945,6 +563,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
+  workoutContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.lg,
+  },
   backButton: {
     width: 44,
     height: 44,
@@ -955,51 +578,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginLeft: spacing.md,
     alignSelf: 'flex-start',
-  },
-  timerContainer: {
-    alignItems: 'center',
-    marginVertical: spacing.xl,
-  },
-  timerCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  timerBackground: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 100,
-    borderWidth: 8,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  timerProgressDot: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#006CB5',
-    top: 0,
-    left: '50%',
-    marginLeft: -8,
-    marginTop: -8,
-  },
-  timerInner: {
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  timerNumber: {
-    fontSize: 56,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  timerLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
   },
   titleSection: {
     marginVertical: spacing.xl,
@@ -1046,6 +624,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  startButtonDisabled: {
+    opacity: 0.5,
   },
   startButtonText: {
     fontSize: 16,

@@ -11,16 +11,21 @@ import {
   Dimensions,
   ImageBackground,
   Image,
+  ActivityIndicator,
+  Animated,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../context/StudentContext';
 import { colors, typography, spacing } from '../theme';
 import Icon from '../components/common/Icon';
+import API_CONFIG from '../config/api';
 import AllBeltsScreen from './AllBeltsScreen';
 import AllProgramsScreen from './AllProgramsScreen';
 import ProgramDetailScreen from './ProgramDetailScreen';
 import QuickWorkoutScreen from './QuickWorkoutScreen';
 import KicksScreen from './KicksScreen';
+import techImage from '../assets/tech.png';
 import LearnerProfileScreen from './LearnerProfileScreen';
 
 const { width } = Dimensions.get('window');
@@ -32,223 +37,251 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [lessons, setLessons] = useState([]);
   const [recentlyWatched, setRecentlyWatched] = useState({
-    id: 1,
     title: 'Basic Kicks',
-    duration: '25 min',
-    lesson: '1/20',
-    progress: 5,
-    status: 'continue',
-    label: 'CONTINUE',
+    subtitle: 'Start your first session',
+    type: 'program',
     bgColor: '#2d3748',
+    image: null,
   });
   const [beltProgress, setBeltProgress] = useState([]);
+  const [beltLoading, setBeltLoading] = useState(true);
   const [programs, setPrograms] = useState([]);
   const [showAllBelts, setShowAllBelts] = useState(false);
   const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState(null);
-  const [showQuickWorkout, setShowQuickWorkout] = useState(false);
-  const [showKicks, setShowKicks] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+
+  // Fetch latest photo from server (handles case where photo uploaded after login)
+  useEffect(() => {
+    const loadPhoto = async () => {
+      const BASE_URL = API_CONFIG.BASE_URL.replace('/api', '');
+      if (student?.photo) {
+        const url = student.photo.startsWith('http')
+          ? student.photo
+          : `${BASE_URL}${student.photo.startsWith('/') ? '' : '/'}${student.photo}`;
+        setProfilePhotoUrl(url);
+        return;
+      }
+      try {
+        const token = await AsyncStorage.getItem('auth_token');
+        if (!token) return;
+        const res = await fetch(`${API_CONFIG.BASE_URL}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const p = data?.data?.user?.photo;
+        if (p) {
+          const url = p.startsWith('http') ? p : `${BASE_URL}${p.startsWith('/') ? '' : '/'}${p}`;
+          setProfilePhotoUrl(url);
+        }
+      } catch (e) { /* ignore */ }
+    };
+    loadPhoto();
+  }, [student]);
+  const [activeTab, setActiveTab] = useState('home');
+
+  const loadBeltProgress = React.useCallback(async () => {
+    try {
+      setBeltLoading(true);
+      const baseUrl = API_CONFIG.BASE_URL;
+      const serverBase = baseUrl.replace('/api', '');
+      const [beltRes, exRes] = await Promise.all([
+        fetch(`${baseUrl}/belt-content`),
+        fetch(`${baseUrl}/exercises`),
+      ]);
+      const beltJson = await beltRes.json();
+      const exJson = await exRes.json();
+
+      const apiData = beltJson?.data?.belts || [];
+      const allExercises = exJson?.data?.exercises || [];
+
+      const mapped = await Promise.all(apiData.map(async (b, i) => {
+        const beltName = b.beltName;
+        const total = allExercises.filter(ex => !ex.beltName || ex.beltName === beltName).length;
+        const saved = await AsyncStorage.getItem(`belt_progress_${beltName}`);
+        const completed = saved ? parseInt(saved, 10) || 0 : 0;
+        const progress = total > 0 ? completed / total : 0;
+        return {
+          id: b._id || i + 1,
+          belt: beltName,
+          total,
+          completed,
+          progress,
+          imageUri: b.image
+            ? (b.image.startsWith('http') ? b.image : `${serverBase}/${b.image}`)
+            : null,
+        };
+      }));
+
+      setBeltProgress(mapped);
+    } catch (err) {
+      console.log('loadBeltProgress error:', err?.message);
+    } finally {
+      setBeltLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
     loadRecentlyWatched();
-  }, []);
-
-  useEffect(() => {
-    console.log('Recently watched updated:', recentlyWatched);
-  }, [recentlyWatched]);
+    loadBeltProgress();
+  }, [loadBeltProgress]);
 
   const loadRecentlyWatched = async () => {
     try {
+      // One-time migration: clear old format data
+      const migrated = await AsyncStorage.getItem('rw_migrated_v2');
+      if (!migrated) {
+        await AsyncStorage.removeItem('recentlyWatched');
+        await AsyncStorage.setItem('rw_migrated_v2', '1');
+        return;
+      }
       const stored = await AsyncStorage.getItem('recentlyWatched');
+      console.log('Loaded from AsyncStorage:', stored);
       if (stored) {
-        setRecentlyWatched(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        console.log('Parsed recently watched:', parsed);
+        const validTypes = ['kicks', 'quickWorkout', 'program', 'belt'];
+        if (parsed && validTypes.includes(parsed.type) && parsed.title) {
+          // Restore image for kicks type if not present
+          if (parsed.type === 'kicks' && !parsed.image) {
+            parsed.image = techImage;
+          }
+          setRecentlyWatched(parsed);
+        } else {
+          await AsyncStorage.removeItem('recentlyWatched');
+        }
       }
     } catch (error) {
       console.log('Error loading recently watched:', error);
+      await AsyncStorage.removeItem('recentlyWatched').catch(() => {});
     }
   };
 
   const handleVideoWatch = async (video) => {
-    console.log('=== handleVideoWatch called ===');
-    console.log('Video data:', video);
+    console.log('Saving recently watched:', video);
     setRecentlyWatched(video);
     try {
-      await AsyncStorage.setItem('recentlyWatched', JSON.stringify(video));
+      // Save to AsyncStorage, preserving image data structure
+      const toSave = { 
+        ...video, 
+        // Don't serialize local asset images (they're numbers, not serializable)
+        // But preserve URI-based images
+        image: video.image && typeof video.image === 'object' && video.image.uri 
+          ? video.image 
+          : (video.type === 'kicks' ? null : video.image)
+      };
+      console.log('Saving to AsyncStorage:', toSave);
+      await AsyncStorage.setItem('recentlyWatched', JSON.stringify(toSave));
     } catch (error) {
       console.log('Error saving recently watched:', error);
     }
   };
 
-  const handleProgramClick = (program) => {
-    // Update recently watched
-    handleVideoWatch({
-      id: program.id,
+  const handleProgramClick = async (program) => {
+    await handleVideoWatch({
       title: program.title,
-      duration: program.duration,
-      lesson: program.lessons,
-      progress: program.progress,
+      subtitle: `${program.total ?? 0} lessons`,
+      type: 'program',
       bgColor: '#2d3748',
+      image: program.image || null,
+      programId: program.id || program._id,
     });
     setSelectedProgram(program);
   };
 
-  const loadDashboardData = () => {
-    const lessonsData = [
-      {
-        id: 1,
-        title: 'Basic Kicks',
-        duration: '25 min',
-        lesson: '1/20',
-        progress: 5,
-        status: 'continue',
-        label: 'CONTINUE',
-        bgColor: '#2d3748',
-      },
-    ];
+  const navigateToRecent = () => {
+    if (recentlyWatched.type === 'program') {
+      const program = programs.flatMap(p => p.programs).find(
+        prog => (prog.id || prog._id) === recentlyWatched.programId || prog.title === recentlyWatched.title
+      );
+      if (program) setSelectedProgram(program);
+    } else if (recentlyWatched.type === 'belt') {
+      const belt = beltProgress.find(b => b.belt === recentlyWatched.beltName);
+      if (belt) handleBeltClick(belt);
+    } else if (recentlyWatched.type === 'kicks') {
+      // Navigate to kicks screen and potentially to specific technique
+      setActiveTab('kicks');
+    } else if (recentlyWatched.type === 'quickWorkout') {
+      setActiveTab('workout');
+    }
+  };
 
-    const beltData = [
-      {
-        id: 1,
-        belt: 'White',
-        color: '#e5e7eb',
-        progress: 100,
-        status: 'completed',
-      },
-      {
-        id: 2,
-        belt: 'Yellow',
-        color: '#fbbf24',
-        progress: 65,
-        status: 'in-progress',
-      },
-      {
-        id: 3,
-        belt: 'Green',
-        color: '#34d399',
-        progress: 0,
-        status: 'locked',
-      },
-      {
-        id: 4,
-        belt: 'Blue',
-        color: '#60a5fa',
-        progress: 0,
-        status: 'locked',
-      },
-      {
-        id: 5,
-        belt: 'Red',
-        color: '#ef4444',
-        progress: 0,
-        status: 'locked',
-      },
-      {
-        id: 6,
-        belt: 'Black',
-        color: '#1f2937',
-        progress: 0,
-        status: 'locked',
-      },
-    ];
+  const handleBeltClick = async (belt) => {
+    const imageObj = belt.imageUri ? { uri: belt.imageUri } : null;
+    console.log('Belt image:', JSON.stringify(imageObj));
+    await handleVideoWatch({
+      title: belt.belt,
+      subtitle: `${belt.total ?? 0} lessons`,
+      type: 'belt',
+      bgColor: '#1a3a5c',
+      image: imageObj,
+      beltName: belt.belt,
+    });
+    onSelectBelt && onSelectBelt(belt);
+  };
 
-    const programsData = [
-      {
-        id: 1,
-        category: 'Taekwondo Kicks',
-        programs: [
-          {
-            id: 'p1',
-            title: 'Basic Kicks',
-            lessons: '1/20',
-            duration: '25 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Basic+Kicks' },
-            progress: 5,
-          },
-          {
-            id: 'p2',
-            title: 'Kicks Mastery',
-            lessons: '20',
-            duration: '25 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Kicks+Mastery' },
-            progress: 0,
-          },
-          {
-            id: 'p3',
-            title: 'Explosive Kicks',
-            lessons: '20',
-            duration: '30 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Expert+Kicks' },
-            progress: 0,
-          },
-        ],
-      },
-      {
-        id: 2,
-        category: 'Target Focus',
-        programs: [
-          {
-            id: 'p4',
-            title: 'Combo Junkies',
-            lessons: '20',
-            duration: '15 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Combo+Junkies' },
-            progress: 0,
-          },
-          {
-            id: 'p5',
-            title: 'Punches & Blocks',
-            lessons: '30',
-            duration: '15 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Punches' },
-            progress: 0,
-          },
-          {
-            id: 'p6',
-            title: 'Lightning Footwork',
-            lessons: '25',
-            duration: '20 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Speed' },
-            progress: 0,
-          },
-        ],
-      },
-      {
-        id: 3,
-        category: 'Stretching & Recovery',
-        programs: [
-          {
-            id: 'p7',
-            title: 'Stretching & Flexibility',
-            lessons: '15',
-            duration: '20 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Flexibility' },
-            progress: 0,
-          },
-          {
-            id: 'p8',
-            title: 'Recovery',
-            lessons: '10',
-            duration: '15 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Recovery' },
-            progress: 0,
-          },
-          {
-            id: 'p9',
-            title: 'Full Split Goal',
-            lessons: '8',
-            duration: '10 min',
-            image: { uri: 'https://via.placeholder.com/160x140/1f2937/ffffff?text=Cool+Down' },
-            progress: 0,
-          },
-        ],
-      },
-    ];
+  const handleKicksClick = () => {
+    handleVideoWatch({
+      title: 'Technique Library',
+      subtitle: '100+ exercises and tips',
+      type: 'kicks',
+      bgColor: '#1f2937',
+      image: techImage,
+    });
+    setActiveTab('kicks');
+  };
 
-    setLessons(lessonsData);
-    setBeltProgress(beltData);
-    setPrograms(programsData);
+  const handleQuickWorkoutClick = () => {
+    handleVideoWatch({
+      title: 'Quick Workout',
+      subtitle: 'Custom training session',
+      type: 'quickWorkout',
+      bgColor: '#2d3748',
+      image: null,
+    });
+    setActiveTab('workout');
+  };
+
+  const loadDashboardData = async () => {
+    try {
+      const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
+      const [progRes, exRes] = await Promise.all([
+        fetch(`${API_CONFIG.BASE_URL}/programs`),
+        fetch(`${API_CONFIG.BASE_URL}/programs/exercises/all`),
+      ]);
+      const progJson = await progRes.json();
+      const exJson = await exRes.json();
+      const apiPrograms = progJson?.data?.programs || [];
+      const allExercises = exJson?.data?.exercises || [];
+
+      // Group by category
+      const categoryMap = {};
+      apiPrograms.forEach(p => {
+        const cat = p.category || 'General';
+        if (!categoryMap[cat]) categoryMap[cat] = [];
+        const total = allExercises.filter(ex => ex.programId === p._id || ex.programTitle === p.title).length;
+        categoryMap[cat].push({
+          ...p,
+          id: p._id,
+          total,
+          image: p.image
+            ? { uri: p.image.startsWith('http') ? p.image : `${serverBase}/${p.image}` }
+            : null,
+          progress: 0,
+        });
+      });
+
+      const programsData = Object.entries(categoryMap).map(([category, programs], i) => ({
+        id: i + 1,
+        category,
+        programs,
+      }));
+
+      setPrograms(programsData);
+    } catch (err) {
+      console.log('loadDashboardData error:', err.message);
+    }
   };
 
   const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -298,78 +331,41 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
     <TouchableOpacity 
       style={styles.beltCard} 
       activeOpacity={0.8}
-      onPress={() => {
-        // Update recently watched
-        handleVideoWatch({
-          id: item.id,
-          title: item.belt,
-          duration: '25 min',
-          lesson: '1/20',
-          progress: item.progress,
-          bgColor: '#2d3748',
-        });
-        // Call original handler if exists
-        onSelectBelt && onSelectBelt(item);
-      }}
+      onPress={() => handleBeltClick(item)}
     >
-      <View
-        style={[
-          styles.beltImageContainer,
-          { backgroundColor: '#f3f4f6' },
-          item.status === 'locked' && styles.beltImageContainerLocked,
-        ]}
-      >
-        {item.status === 'locked' ? (
-          <Icon name="lock" size={32} color="#9ca3af" type="MaterialIcons" />
-        ) : item.status === 'completed' ? (
-          <Icon name="check-circle" size={32} color="#10b981" type="MaterialIcons" />
+      <View style={styles.beltImageContainer}>
+        {item.imageUri ? (
+          <Image source={{ uri: item.imageUri }} style={styles.beltImageFull} resizeMode="cover" />
         ) : (
-          <Text style={styles.beltEmoji}>🥋</Text>
+          <View style={styles.beltImagePlaceholder}>
+            <Text style={styles.beltEmoji}>🥋</Text>
+          </View>
         )}
       </View>
 
       <View style={styles.beltInfoContainer}>
         <Text style={styles.beltName}>{item.belt}</Text>
-        <Text style={styles.beltLessons}>20 lessons • 25 min</Text>
-        
-        <View style={styles.beltProgressBar}>
-          <View
-            style={[
-              styles.beltProgressFill,
-              { width: `${item.progress}%`, backgroundColor: item.color },
-            ]}
-          />
-        </View>
+        <Text style={styles.beltLessons}>
+          {item.completed > 0 ? `${item.completed} / ${item.total} lessons` : `${item.total} lessons`}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   const renderProgramCard = ({ item }) => (
     <TouchableOpacity style={styles.programCard} activeOpacity={0.8} onPress={() => handleProgramClick(item)}>
-      <ImageBackground
-        source={item.image}
-        style={styles.programImageContainer}
-        imageStyle={styles.programImageStyle}
-      >
-        <View style={styles.programImageOverlay} />
-      </ImageBackground>
-
-      <View style={styles.programInfo}>
-        <Text style={styles.programTitle}>{item.title}</Text>
-        <Text style={styles.programMeta}>
-          {item.lessons} • {item.duration}
-        </Text>
-        
-        {item.progress > 0 && (
-          <View style={styles.programProgressBar}>
-            <View
-              style={[
-                styles.programProgressFill,
-                { width: `${item.progress}%` },
-              ]}
-            />
+      <View style={styles.programImageContainer}>
+        {item.image ? (
+          <Image source={item.image} style={styles.programImageFull} resizeMode="cover" />
+        ) : (
+          <View style={styles.programImagePlaceholder}>
+            <Icon name="fitness-center" size={36} color="#9ca3af" type="MaterialIcons" />
           </View>
         )}
+      </View>
+      <View style={styles.programInfo}>
+        <Text style={styles.programTitle}>{item.title}</Text>
+        <Text style={styles.programMeta}>{item.total ?? 0} lessons</Text>
       </View>
     </TouchableOpacity>
   );
@@ -378,9 +374,10 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
+      {/* Full-screen overlays (no bottom nav) */}
       {showAllBelts ? (
         <AllBeltsScreen 
-          onBack={() => setShowAllBelts(false)}
+          onBack={() => { setShowAllBelts(false); loadBeltProgress(); }}
           onVideoWatch={handleVideoWatch}
         />
       ) : showAllPrograms ? (
@@ -391,197 +388,219 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
           onBack={() => setSelectedProgram(null)}
           onVideoWatch={handleVideoWatch}
         />
-      ) : showQuickWorkout ? (
-        <QuickWorkoutScreen onBack={() => setShowQuickWorkout(false)} />
-      ) : showKicks ? (
-        <KicksScreen 
-          onBack={() => setShowKicks(false)}
-          onVideoWatch={handleVideoWatch}
-        />
-      ) : showProfile ? (
-        <LearnerProfileScreen 
-          onBack={() => setShowProfile(false)}
-          onLogout={onLogout}
-        />
       ) : (
         <>
-          {/* Header */}
-          <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>👤</Text>
-          </View>
-          <View>
-            <Text style={styles.welcomeText}>Welcome back</Text>
-            <Text style={styles.userName}>{student?.name || 'Student'}</Text>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Weekly Schedule */}
-        <View style={styles.section}>
-          <View style={styles.daysContainer}>
-            {days.map((day) => (
-              <TouchableOpacity
-                key={day.key}
-                style={[
-                  styles.dayButton,
-                  selectedDay === day.key && styles.dayButtonActive,
-                ]}
-                onPress={() => setSelectedDay(day.key)}
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    selectedDay === day.key && styles.dayTextActive,
-                  ]}
-                >
-                  {day.label}
-                </Text>
-                <View
-                  style={[
-                    styles.dayCircle,
-                    selectedDay === day.key && styles.dayCircleActive,
-                  ]}
-                >
-                  <Text style={[styles.dayNumber, selectedDay === day.key && styles.dayNumberActive]}>{day.date}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Recently Watched */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recently Watched</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.lessonCard, { backgroundColor: recentlyWatched.bgColor }]} 
-            activeOpacity={0.8}
-            onPress={() => {
-              // Navigate back to the program
-              const program = programs.flatMap(p => p.programs).find(prog => prog.title === recentlyWatched.title);
-              if (program) {
-                setSelectedProgram(program);
-              }
-            }}
-          >
-            <View style={styles.lessonLabelContainer}>
-              <Text style={styles.lessonLabel}>CONTINUE</Text>
-            </View>
-
-            <View style={styles.lessonFooter}>
-              <View style={styles.lessonContent}>
-                <Text style={styles.lessonTitle}>{recentlyWatched.title}</Text>
-                <Text style={styles.lessonDuration}>
-                  Lesson {recentlyWatched.lesson} • {recentlyWatched.duration}
-                </Text>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { width: `${recentlyWatched.progress}%` },
-                      ]}
-                    />
+          {/* Tab Content */}
+          <View style={{ flex: 1 }}>
+            {activeTab === 'home' && (
+              <>
+                {/* Header */}
+                <View style={styles.header}>
+                  <View style={styles.headerLeft}>
+                    <View style={styles.avatarContainer}>
+                      {profilePhotoUrl ? (
+                        <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.avatarEmoji}>👤</Text>
+                      )}
+                    </View>
+                    <View>
+                      <Text style={styles.welcomeText}>Welcome back</Text>
+                      <Text style={styles.userName}>{student?.name || 'Student'}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <TouchableOpacity style={styles.continueButton}>
-                <Icon name="arrow-forward" size={20} color={colors.primary} type="MaterialIcons" />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </View>
+                <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                  {/* Weekly Schedule */}
+                  <View style={styles.section}>
+                    <View style={styles.daysContainer}>
+                      {days.map((day) => (
+                        <TouchableOpacity
+                          key={day.key}
+                          style={[styles.dayButton, selectedDay === day.key && styles.dayButtonActive]}
+                          onPress={() => setSelectedDay(day.key)}
+                        >
+                          <Text style={[styles.dayText, selectedDay === day.key && styles.dayTextActive]}>{day.label}</Text>
+                          <View style={[styles.dayCircle, selectedDay === day.key && styles.dayCircleActive]}>
+                            <Text style={[styles.dayNumber, selectedDay === day.key && styles.dayNumberActive]}>{day.date}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
 
-        {/* Progression by Belt */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Progression by belt</Text>
-            <TouchableOpacity onPress={() => setShowAllBelts(true)}>
-              <Text style={styles.viewAllText}>VIEW ALL</Text>
+                  {/* Recently Watched */}
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Recently Watched</Text>
+                    </View>
+                    <TouchableOpacity activeOpacity={0.8} onPress={navigateToRecent}>
+                      {(() => {
+                        // Handle different image sources properly
+                        let img = null;
+                        if (recentlyWatched.image) {
+                          if (typeof recentlyWatched.image === 'object' && recentlyWatched.image.uri) {
+                            img = recentlyWatched.image; // URI-based image
+                          } else if (typeof recentlyWatched.image === 'number') {
+                            img = recentlyWatched.image; // Local asset
+                          }
+                        } else if (recentlyWatched.type === 'kicks') {
+                          img = techImage; // Fallback for kicks
+                        }
+
+                        return img ? (
+                        <ImageBackground
+                          source={img}
+                          style={styles.recentCard}
+                          imageStyle={{ borderRadius: 16, resizeMode: 'cover' }}
+                        >
+                          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }} />
+                          </View>
+                          <View style={styles.recentCardContent}>
+                            <Text style={styles.recentTitle}>{recentlyWatched.title}</Text>
+                            <Text style={styles.recentSubtitle}>{recentlyWatched.subtitle}</Text>
+                            <View style={styles.recentCardRow}>
+                              <View style={styles.recentContinueBtn}>
+                                <Text style={styles.recentContinueBtnText}>Continue</Text>
+                                <Icon name="arrow-forward" size={16} color="#1f2937" type="MaterialIcons" />
+                              </View>
+                            </View>
+                          </View>
+                        </ImageBackground>
+                        ) : (
+                        <View style={[styles.recentCard, { backgroundColor: recentlyWatched.bgColor || '#2d3748', justifyContent: 'center', alignItems: 'center' }]}>
+                          <Icon name="play-circle-outline" size={48} color="rgba(255,255,255,0.3)" type="MaterialIcons" />
+                          <Text style={[styles.lessonTitle, { marginTop: 8, textAlign: 'center' }]}>
+                            {recentlyWatched.title || 'No recent activity'}
+                          </Text>
+                          <Text style={[styles.lessonDuration, { textAlign: 'center' }]}>
+                            {recentlyWatched.subtitle || 'Visit a belt or program to track progress'}
+                          </Text>
+                        </View>
+                        );
+                      })()}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Progression by Belt */}
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Progression by belt</Text>
+                      <TouchableOpacity onPress={() => setShowAllBelts(true)}>
+                        <Text style={styles.viewAllText}>VIEW ALL</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {beltLoading ? (
+                      <ActivityIndicator size="small" color="#006CB5" style={{ marginVertical: 20 }} />
+                    ) : beltProgress.length === 0 ? (
+                      <View style={styles.beltEmpty}>
+                        <Icon name="sports-kabaddi" size={32} color="#d1d5db" type="MaterialIcons" />
+                        <Text style={styles.beltEmptyText}>No belts available</Text>
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={beltProgress}
+                        renderItem={renderBeltCard}
+                        keyExtractor={(item) => item.id.toString()}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.beltScrollContainer}
+                      />
+                    )}
+                  </View>
+
+                  {/* Programs Sections */}
+                  {programs.map((programSection) => (
+                    <View key={programSection.id} style={styles.section}>
+                      {programSection.id === 1 && (
+                        <View style={styles.sectionHeader}>
+                          <Text style={styles.sectionTitle}>Programs</Text>
+                          <TouchableOpacity onPress={() => setShowAllPrograms(true)}>
+                            <Text style={styles.viewAllText}>VIEW ALL</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      <Text style={styles.categorySubtitle}>{programSection.category}</Text>
+                      <FlatList
+                        data={programSection.programs}
+                        renderItem={renderProgramCard}
+                        keyExtractor={(item) => item.id}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.programScrollContainer}
+                      />
+                    </View>
+                  ))}
+
+                  {/* Technique Library Card */}
+                  <View style={styles.featureSection}>
+                    <TouchableOpacity style={styles.techCard} activeOpacity={0.9} onPress={handleKicksClick}>
+                      <ImageBackground source={techImage} style={styles.techCardBg} imageStyle={styles.techCardBgImage} resizeMode="cover">
+                        <View style={styles.techCardOverlay} />
+                        <View style={styles.techCardArrow}>
+                          <Icon name="arrow-forward" size={18} color="#fff" type="MaterialIcons" />
+                        </View>
+                        <View style={styles.techCardLeft}>
+                          <View style={styles.techBadge}>
+                            <Text style={styles.techBadgeText}>🥋 Library</Text>
+                          </View>
+                          <Text style={styles.techCardTitle}>Technique Library</Text>
+                          <Text style={styles.techCardDesc}>100+ exercises and tips</Text>
+                        </View>
+                      </ImageBackground>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.footerSpace} />
+                </ScrollView>
+              </>
+            )}
+
+            {activeTab === 'workout' && (
+              <QuickWorkoutScreen onBack={() => setActiveTab('home')} />
+            )}
+
+            {activeTab === 'kicks' && (
+              <KicksScreen
+                onBack={() => setActiveTab('home')}
+                onVideoWatch={handleVideoWatch}
+              />
+            )}
+
+            {activeTab === 'profile' && (
+              <LearnerProfileScreen
+                onBack={() => setActiveTab('home')}
+                onLogout={onLogout}
+                onSwitch={onBack}
+                canEdit={false}
+              />
+            )}
+          </View>
+
+          {/* Bottom Navigation — always visible */}
+          <View style={styles.bottomNavigation}>
+            <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setActiveTab('home')}>
+              <Icon name="home" size={26} color={activeTab === 'home' ? colors.primary : '#9ca3af'} type="MaterialIcons" />
+              <Text style={[styles.navLabel, activeTab === 'home' && { color: colors.primary }]}>Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setActiveTab('workout')}>
+              <Icon name="schedule" size={26} color={activeTab === 'workout' ? colors.primary : '#9ca3af'} type="MaterialIcons" />
+              <Text style={[styles.navLabel, activeTab === 'workout' && { color: colors.primary }]}>Workout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setActiveTab('kicks')}>
+              <Icon name="menu" size={26} color={activeTab === 'kicks' ? colors.primary : '#9ca3af'} type="MaterialIcons" />
+              <Text style={[styles.navLabel, activeTab === 'kicks' && { color: colors.primary }]}>Kicks</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setActiveTab('profile')}>
+              <Icon name="person" size={26} color={activeTab === 'profile' ? colors.primary : '#9ca3af'} type="MaterialIcons" />
+              <Text style={[styles.navLabel, activeTab === 'profile' && { color: colors.primary }]}>Profile</Text>
             </TouchableOpacity>
           </View>
-
-          <FlatList
-            data={beltProgress}
-            renderItem={renderBeltCard}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            scrollEnabled={true}
-            contentContainerStyle={styles.beltScrollContainer}
-          />
-        </View>
-
-        {/* Programs Sections */}
-        {programs.map((programSection) => (
-          <View key={programSection.id} style={styles.section}>
-            {programSection.id === 1 && (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Programs</Text>
-                <TouchableOpacity onPress={() => setShowAllPrograms(true)}>
-                  <Text style={styles.viewAllText}>VIEW ALL</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            
-            <Text style={styles.categorySubtitle}>{programSection.category}</Text>
-
-            <FlatList
-              data={programSection.programs}
-              renderItem={renderProgramCard}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              scrollEnabled={true}
-              contentContainerStyle={styles.programScrollContainer}
-            />
-          </View>
-        ))}
-
-        {/* Feature Cards Section */}
-        <View style={styles.featureSection}>
-          {/* Technique Library Card */}
-          <TouchableOpacity style={styles.featureCard} activeOpacity={1} onPress={() => setShowKicks(true)}>
-            <View style={styles.featureCardContent}>
-              <View style={styles.featureCardTextContainer}>
-                <Text style={styles.featureCardTitle}>Technique Library</Text>
-                <Text style={styles.featureCardDesc}>300+ exercises and tips</Text>
-              </View>
-              
-              <View style={styles.featureCardArrow}>
-                <Icon name="arrow-forward" size={24} color={colors.primary} type="MaterialIcons" />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footerSpace} />
-      </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNavigation}>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Icon name="home" size={28} color={colors.primary} type="MaterialIcons" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setShowQuickWorkout(true)}>
-          <Icon name="schedule" size={28} color="#9ca3af" type="MaterialIcons" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setShowKicks(true)}>
-          <Icon name="menu" size={28} color="#9ca3af" type="MaterialIcons" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => setShowProfile(true)}>
-          <Icon name="person" size={28} color="#9ca3af" type="MaterialIcons" />
-        </TouchableOpacity>
-      </View>
         </>
       )}
     </SafeAreaView>
@@ -614,13 +633,19 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
+    overflow: 'hidden',
   },
   avatarEmoji: {
     fontSize: 28,
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   welcomeText: {
     fontSize: 12,
@@ -743,9 +768,80 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  recentCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    height: 220,
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  recentCardShade: {
+    display: 'none',
+  },
+  recentGradient1: {
+    display: 'none',
+  },
+  recentGradient2: {
+    display: 'none',
+  },
+  recentGradient3: {
+    display: 'none',
+  },  recentCardContent: {
+    padding: spacing.lg,
+    paddingTop: 0,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
+    flex: 1,
+  },
+  recentCardBottom: {
+    paddingVertical: spacing.xs,
+  },
+  recentCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.sm,
+  },
+  recentCardGradient: {
+    display: 'none',
+  },
+  recentLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  recentTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  recentSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  recentContinueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 4,
+  },
+  recentContinueBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
   lessonLabelContainer: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 6,
@@ -753,7 +849,7 @@ const styles = StyleSheet.create({
   },
   lessonLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#fff',
     letterSpacing: 0.5,
   },
@@ -806,6 +902,16 @@ const styles = StyleSheet.create({
   beltScrollContainer: {
     paddingRight: spacing.md,
   },
+  beltEmpty: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  beltEmptyText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
   programScrollContainer: {
     paddingRight: spacing.md,
   },
@@ -826,7 +932,20 @@ const styles = StyleSheet.create({
     height: 140,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1f2937',
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
+  },
+  programImageFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  programImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   programImageStyle: {
     borderTopLeftRadius: 16,
@@ -992,9 +1111,84 @@ const styles = StyleSheet.create({
     minHeight: 140,
     justifyContent: 'center',
   },
+  techCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginHorizontal: spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
+    height: 200,
+  },
+  techCardBg: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  techCardBgImage: {
+    borderRadius: 24,
+    resizeMode: 'cover',
+  },
+  techCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 24,
+  },
+  techCardLeft: {
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    gap: 6,
+    zIndex: 2,
+  },
+  techBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  techBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  techCardTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 28,
+  },
+  techCardDesc: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '500',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  techCardArrow: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  techCardImage: {
+    width: '48%',
+    height: '100%',
+  },
   featureCardImage: {
     width: '100%',
-    height: 200,
+    height: 160,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
@@ -1165,34 +1359,44 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
   },
-  beltImageContainerLocked: {
-    opacity: 0.6,
+  beltImageFull: {
+    width: '100%',
+    height: '100%',
+  },
+  beltImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
   },
   beltEmoji: {
     fontSize: 40,
   },
   beltName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1f2937',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   beltLessons: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9ca3af',
     marginBottom: spacing.sm,
     fontWeight: '500',
   },
+  beltProgressPct: {
+    fontSize: 10,
+    color: '#6b7280',
+    fontWeight: '600',
+    marginTop: 3,
+  },
   beltInfoContainer: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-  },
-  beltColorBar: {
-    width: '100%',
-    height: 6,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
   },
   beltProgressBar: {
     width: '100%',
@@ -1217,20 +1421,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: '#fff',
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
+    paddingBottom: 14,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 10,
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: 4,
     paddingHorizontal: spacing.lg,
+    gap: 3,
+  },
+  navLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginTop: 2,
   },
 });
 

@@ -9,12 +9,14 @@ import {
   Dimensions,
   StatusBar,
   Modal,
+  Image,
 } from 'react-native';
 import { useNavigation } from '../context/NavigationContext';
 import { StudentService } from '../services';
 import Icon from '../components/common/Icon';
 import Logo from '../components/common/Logo';
 import VectorIconTest from '../components/VectorIconTest';
+import API_CONFIG from '../config/api';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +30,8 @@ const DashboardScreen = () => {
   const [attendancePercentage, setAttendancePercentage] = useState(0);
   const [currentBeltLevel, setCurrentBeltLevel] = useState('Loading...');
   const [studentName, setStudentName] = useState('Student');
+  const [studentPhoto, setStudentPhoto] = useState(null);
+  const BASE_URL = API_CONFIG.BASE_URL.replace('/api', '');
 
   // Fetch dashboard data - with authentication handling
   useEffect(() => {
@@ -39,7 +43,11 @@ const DashboardScreen = () => {
           if (profileResponse) {
             setStudentName(profileResponse.fullName || profileResponse.name || 'Student');
             setCurrentBeltLevel(profileResponse.currentBeltLevel || 'N/A');
-            console.log('✅ Profile loaded:', profileResponse.fullName, 'Belt:', profileResponse.currentBeltLevel);
+            const p = profileResponse.photo;
+            if (p) {
+              const url = p.startsWith('http') ? p : `${BASE_URL}${p.startsWith('/') ? '' : '/'}${p}`;
+              setStudentPhoto(url);
+            }
           }
         } catch (profileError) {
           console.log('⚠️ Could not fetch profile:', profileError.message);
@@ -220,7 +228,11 @@ const DashboardScreen = () => {
         <View style={styles.headerContent}>
           <View style={styles.leftSection}>
             <View style={styles.avatarContainer}>
-              <Logo size="small" showText={false} variant="navbar" />
+              {studentPhoto ? (
+                <Image source={{ uri: studentPhoto }} style={styles.avatarImage} resizeMode="cover" />
+              ) : (
+                <Text style={styles.avatarEmoji}>👤</Text>
+              )}
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.greeting}>Hello!</Text>
@@ -228,10 +240,6 @@ const DashboardScreen = () => {
             </View>
           </View>
           <View style={styles.rightSection}>
-           
-            <TouchableOpacity style={styles.notificationButton}>
-              <Icon name="notifications" size={24} color="#fff" type="MaterialIcons" />
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -350,6 +358,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  avatarImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+  },
+  avatarEmoji: {
+    fontSize: 26,
     elevation: 3,
   },
   userName: {

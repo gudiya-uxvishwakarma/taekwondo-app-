@@ -655,16 +655,9 @@ const LevelStatusScreen = () => {
         possibleUrls.push(certificateUrl);
       } else {
         const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
-        
-        if (certificateUrl.startsWith('/')) {
-          possibleUrls.push(`${serverUrl}${certificateUrl}`);
-        } else {
-          // Try different possible folder structures
-          possibleUrls.push(`${serverUrl}/uploads/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/uploads/belt-exams/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/uploads/certificates/${certificateUrl}`);
-        }
+        const cleanPath = certificateUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+        possibleUrls.push(`${serverUrl}/uploads/${cleanPath}`);
+        possibleUrls.push(`${serverUrl}/${certificateUrl.replace(/^\/+/, '')}`);
       }
 
       // Use the first URL for now (we'll try others if this fails)
@@ -772,29 +765,20 @@ const LevelStatusScreen = () => {
         possibleUrls.push(certificateUrl);
       } else {
         const serverUrl = API_CONFIG.BASE_URL.replace('/api', '');
+        // Normalize: strip any leading slash or 'uploads/' prefix to get clean relative path
+        const cleanPath = certificateUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
         
-        if (certificateUrl.startsWith('/')) {
-          // Direct path - try as-is first
-          possibleUrls.push(`${serverUrl}${certificateUrl}`);
-          
-          // Also try through the API download endpoint if it's a certificate
-          const filename = certificateUrl.split('/').pop();
-          possibleUrls.push(`${API_CONFIG.BASE_URL}/certificates/download?file=${filename}`);
-        } else {
-          // Try different possible folder structures - SAME ORDER as view function
-          possibleUrls.push(`${serverUrl}/uploads/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/uploads/belt-exams/${certificateUrl}`);
-          possibleUrls.push(`${serverUrl}/uploads/certificates/${certificateUrl}`);
-          
-          // Also try through the API download endpoint
-          possibleUrls.push(`${API_CONFIG.BASE_URL}/certificates/download?file=${certificateUrl}`);
-        }
+        // Always try the most direct correct URL first
+        possibleUrls.push(`${serverUrl}/uploads/${cleanPath}`);
+        // Then try with leading slash as-is
+        possibleUrls.push(`${serverUrl}/${certificateUrl.replace(/^\/+/, '')}`);
+        // API download endpoint
+        possibleUrls.push(`${API_CONFIG.BASE_URL}/certificates/download?file=${cleanPath}`);
       }
 
-      // Get file extension
-      const fileExtension = certificateUrl.split('.').pop() || 'jpg';
-      const fileName = `certificate_${certificateCode || Date.now()}.${fileExtension}`;
+      const fileExtension = certificateUrl.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'jpg';
+      const safeCode = (certificateCode || Date.now()).toString().replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `certificate_${safeCode}.${fileExtension}`;
       
       // Determine download path based on platform
       let downloadPath;

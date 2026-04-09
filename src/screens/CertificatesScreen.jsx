@@ -202,7 +202,7 @@ const CertificatesScreen = () => {
       const possiblePaths = [];
       
       if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
-        // Already a full URL (Cloudinary), use it directly
+        // Already a full URL, use it directly
         possiblePaths.push(certificateUrl);
       } else if (certificateUrl.startsWith('/')) {
         possiblePaths.push(certificateUrl);
@@ -218,7 +218,7 @@ const CertificatesScreen = () => {
       // If we have a full URL, try it directly first
       if (certificateUrl.startsWith('http://') || certificateUrl.startsWith('https://')) {
         try {
-          console.log('🔄 Trying direct Cloudinary URL:', certificateUrl);
+          console.log('🔄 Trying direct URL:', certificateUrl);
 
           const downloadResult = await RNFS.downloadFile({
             fromUrl: certificateUrl,
@@ -240,11 +240,11 @@ const CertificatesScreen = () => {
           }).promise;
 
           if (downloadResult.statusCode === 200 && downloadResult.bytesWritten > 0) {
-            console.log('✅ Certificate downloaded successfully from Cloudinary');
+            console.log('✅ Certificate downloaded successfully');
             downloadSuccess = true;
           }
         } catch (error) {
-          console.log('⚠️ Cloudinary direct download failed:', error.message);
+          console.log('⚠️ Direct download failed:', error.message);
           lastError = error;
         }
       }

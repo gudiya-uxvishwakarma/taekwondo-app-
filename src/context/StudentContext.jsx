@@ -26,7 +26,7 @@ try {
 
 const StudentContext = createContext(undefined);
 
-export const StudentProvider = ({ children }) => {
+export const StudentProvider = ({ children, onGoToSelection }) => {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,11 +41,21 @@ export const StudentProvider = ({ children }) => {
       const isAuth = await checkAuth();
       
       if (isAuth) {
+        // Check if token is a real JWT (not a fake local OTP token)
+        const { getToken } = require('../utils/tokenStorage');
+        const token = await getToken();
+        if (token && token.startsWith('otp_token_')) {
+          console.log('⚠️ Fake OTP token found, clearing session — please login again');
+          await clearAllData();
+          setStudent(null);
+          setLoading(false);
+          return;
+        }
+
         const userData = await getUserData();
         if (userData) {
           setStudent(userData);
         } else {
-          // If no user data but token exists, clear everything
           console.log('⚠️ Token exists but no user data, clearing session');
           await clearAllData();
         }
@@ -68,6 +78,15 @@ export const StudentProvider = ({ children }) => {
     setLoading(true);
     
     try {
+      // Handle OTP login — data already verified, just set state
+      if (credentials._otpLoginData) {
+        const { user, token } = credentials._otpLoginData;
+        await saveUserData(user);
+        await saveToken(token);
+        setStudent(user);
+        return true;
+      }
+
       // Direct backend authentication
       console.log('🔐 Attempting login...');
       
@@ -114,15 +133,14 @@ export const StudentProvider = ({ children }) => {
       await AuthService.logout();
     } catch (error) {
       console.log('❌ Logout API error:', error);
-      // Continue with local cleanup even if API call fails
     } finally {
-      // Always clear local data and reset state
       try {
         await clearAllData();
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.removeItem('loginSource');
         setStudent(null);
       } catch (clearError) {
         console.log('❌ Failed to clear data during logout:', clearError);
-        // Force reset state even if clear fails
         setStudent(null);
       }
       setLoading(false);
@@ -154,6 +172,7 @@ export const StudentProvider = ({ children }) => {
     login,
     logout,
     forgotPassword,
+    goToSelection: onGoToSelection || (() => {}),
   };
 
   return (

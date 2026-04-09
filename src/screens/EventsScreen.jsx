@@ -477,7 +477,7 @@ const EventsScreen = () => {
                           event.status === 'Today' ? '#FF9800' : 
                           event.status === 'Past' ? '#95a5a6' : '#006CB5'
                         }
-                      ]}>>
+                      ]}>
                         <Icon 
                           name={
                             event.status === 'Upcoming' ? 'schedule' : 

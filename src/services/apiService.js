@@ -5,21 +5,15 @@ import { getToken, removeToken } from '../utils/tokenStorage';
 class ApiService {
   constructor() {
     this.baseURL = API_CONFIG.BASE_URL;
-    this.timeout = API_CONFIG.TIMEOUT;
-    this.workingUrl = null; // Cache for working URL
-    this.fallbackUrls = API_CONFIG.FALLBACK_URLS || [
-      'http://192.168.1.48:5000/api', // Render production URL - Primary
-      'http://192.168.1.48:5000/api', // Local development IP - Fallback
-      'http://10.0.2.2:5000/api', // Android emulator mapping - Fallback
-      'http://192.168.1.48:5000/api', // Localhost (iOS simulator) - Fallback
-    ];
 
+  
     // Create axios instance
     this.axiosInstance = axios.create({
       baseURL: this.baseURL,
       timeout: this.timeout,
       headers: {
         'Content-Type': 'application/json',
+        'bypass-tunnel-reminder': 'true',
       },
     });
 
@@ -49,26 +43,31 @@ class ApiService {
         return response;
       },
       async error => {
-        console.error(
-          '❌ Response error:',
-          error.response?.status,
-          error.message,
-        );
+        const status = error.response?.status;
+
+        if (status !== 404) {
+          console.error('❌ Response error:', status, error.message);
+        }
 
         if (error.response?.status === 401) {
           const url = error.config?.url || '';
           const isLoginRequest = url.includes('/auth/login') || url.includes('/login');
 
           if (isLoginRequest) {
-            // Login failed due to wrong credentials — pass the server message through
             const message = error.response?.data?.message || 'Invalid email or password';
             throw new Error(message);
           }
 
-          // Token expired on an authenticated request
           console.log('❌ 401 Unauthorized - Token expired or invalid');
           await removeToken();
           throw new Error('Authentication failed');
+        }
+
+        // For all other errors, extract backend message if available
+        if (error.response?.data?.message) {
+          const backendError = new Error(error.response.data.message);
+          backendError.response = error.response;
+          return Promise.reject(backendError);
         }
 
         return Promise.reject(error);
@@ -77,29 +76,10 @@ class ApiService {
   }
 
   async findWorkingUrl() {
-    console.log('🔍 Finding working backend URL...');
-
-    for (const url of this.fallbackUrls) {
-      try {
-        console.log(`📡 Testing: ${url}`);
-        const response = await axios.get(`${url}/health`, {
-          timeout: 10000,
-        });
-
-        if (response.status === 200) {
-          console.log(`✅ Working URL found: ${url}`);
-          this.baseURL = url;
-          this.workingUrl = url;
-          this.axiosInstance.defaults.baseURL = url;
-          return url;
-        }
-      } catch (error) {
-        console.log(`❌ Failed: ${url} - ${error.message}`);
-      }
-    }
-
-    console.log('❌ No working backend URL found');
-    return null;
+    // Skip health check probing — just use the configured base URL directly
+    console.log('✅ Using configured base URL:', this.baseURL);
+    this.workingUrl = this.baseURL;
+    return this.baseURL;
   }
 
   async makeRequest(method, endpoint, data = null, config = {}) {
@@ -134,7 +114,7 @@ class ApiService {
       return response.data;
     } catch (error) {
       // Only log in development, reduce noise
-      if (__DEV__) {
+      if (__DEV__ && error.response?.status !== 404) {
         console.log('⚠️ API Request failed:', error.message);
       }
 
@@ -143,51 +123,7 @@ class ApiService {
         error.code === 'NETWORK_ERROR' ||
         error.message.includes('Network Error')
       ) {
-        console.log('🔄 Network error detected, trying fallback URLs...');
-
-        // Reset the working URL cache and try to find a new one
-        this.workingUrl = null;
-        const workingUrl = await this.findWorkingUrl();
-
-        if (workingUrl && workingUrl !== this.baseURL) {
-          console.log('🔄 Retrying with new URL:', workingUrl);
-
-          try {
-            let retryResponse;
-            switch (method.toLowerCase()) {
-              case 'get':
-                retryResponse = await this.axiosInstance.get(endpoint, config);
-                break;
-              case 'post':
-                retryResponse = await this.axiosInstance.post(
-                  endpoint,
-                  data,
-                  config,
-                );
-                break;
-              case 'put':
-                retryResponse = await this.axiosInstance.put(
-                  endpoint,
-                  data,
-                  config,
-                );
-                break;
-              case 'delete':
-                retryResponse = await this.axiosInstance.delete(
-                  endpoint,
-                  config,
-                );
-                break;
-            }
-
-            console.log('✅ Retry successful with fallback URL');
-            return retryResponse.data;
-          } catch (retryError) {
-            if (__DEV__) {
-              console.log('⚠️ Retry also failed:', retryError.message);
-            }
-          }
-        }
+        console.log('🔄 Network error, skipping retry to avoid long wait');
       }
 
       throw error;

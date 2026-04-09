@@ -13,11 +13,16 @@ import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import BasicTheoryScreen from './theory/BasicTheoryScreen';
 import StancesScreen from './theory/StancesScreen';
+import PracticeSuitScreen from './theory/PracticeSuitScreen';
+import InstructorTitlesScreen from './theory/InstructorTitlesScreen';
+import DoJangScreen from './theory/DoJangScreen';
+import MoralCultureScreen from './theory/MoralCultureScreen';
 import BodyPartsScreen from './theory/BodyPartsScreen';
 import AppInfoScreen from './theory/AppInfoScreen';
 import SourcesScreen from './theory/SourcesScreen';
 import TheoryQuestionsScreen from './theory/TheoryQuestionsScreen';
 import BeltsScreen from './theory/BeltsScreen';
+import PatternsScreen from './theory/PatternsScreen';
 import SparringScreen from './theory/SparringScreen';
 import SparringListScreen from './theory/SparringListScreen';
 import TechniqueScreen from './theory/TechniqueScreen';
@@ -27,11 +32,16 @@ const TheorySyllabusScreen = ({ onBack }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showBasicTheory, setShowBasicTheory] = useState(false);
   const [showStances, setShowStances] = useState(false);
+  const [showPracticeSuit, setShowPracticeSuit] = useState(false);
+  const [showInstructorTitles, setShowInstructorTitles] = useState(false);
+  const [showDoJang, setShowDoJang] = useState(false);
+  const [showMoralCulture, setShowMoralCulture] = useState(false);
   const [showBodyParts, setShowBodyParts] = useState(false);
   const [showAppInfo, setShowAppInfo] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showTheoryQuestions, setShowTheoryQuestions] = useState(false);
   const [showAllBelts, setShowAllBelts] = useState(false);
+  const [showPatterns, setShowPatterns] = useState(false);
   const [showSparring, setShowSparring] = useState(false);
   const [selectedSparringType, setSelectedSparringType] = useState(null);
   const [showTechnique, setShowTechnique] = useState(false);
@@ -68,6 +78,16 @@ const TheorySyllabusScreen = ({ onBack }) => {
       topics: ['White Belt', 'Yellow Belt', 'Green Belt', 'Blue Belt', 'Red Belt', 'Black Belt'],
     },
     {
+      id: 15,
+      title: 'Patterns',
+      iconName: 'view-list',
+      iconType: 'MaterialIcons',
+      iconColor: '#0891b2',
+      bgColor: '#ecfeff',
+      description: 'Patterns, techniques & movements',
+      topics: ['List of Techniques', 'Information', 'New Techniques', 'Description', 'Modified Techniques'],
+    },
+    {
       id: 4,
       title: 'Korean + Korean MATCH!',
       iconName: 'translate',
@@ -102,6 +122,46 @@ const TheorySyllabusScreen = ({ onBack }) => {
       bgColor: '#ecfeff',
       description: 'Fundamental Stances',
       topics: ['Ready Stance', 'Walking Stance', 'L-Stance', 'X-Stance'],
+    },
+    {
+      id: 11,
+      title: 'Practice Suit (Do Bok)',
+      iconName: 'checkroom',
+      iconType: 'MaterialIcons',
+      iconColor: '#006CB5',
+      bgColor: '#eff6ff',
+      description: 'Do Bok, Belt Colors & How to Fold',
+      topics: ['Do Bok Meaning', 'Belt Colors', 'Wreathe the Belt', 'How to Fold'],
+    },
+    {
+      id: 14,
+      title: 'Instructor Titles & Stripes',
+      iconName: 'military-tech',
+      iconType: 'MaterialIcons',
+      iconColor: '#b45309',
+      bgColor: '#fef3c7',
+      description: 'Instructor ranks, titles and stripe system',
+      topics: ['Instructor Titles', 'Stripes', 'Ranks'],
+    },
+    {
+      id: 12,
+      title: 'Do Jang',
+      iconName: 'karate',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#0891b2',
+      bgColor: '#ecfeff',
+      description: 'Training Hall Rules & Etiquette',
+      topics: ['What is a Do Jang', 'Rules', 'Etiquette', 'Layout'],
+    },
+    {
+      id: 13,
+      title: 'Moral Culture',
+      iconName: 'heart-circle-outline',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#7c3aed',
+      bgColor: '#f5f3ff',
+      description: 'Virtues & Ethics of Taekwon-Do',
+      topics: ['Virtues', 'Ethics', 'Discipline', 'Respect'],
     },
     {
       id: 8,
@@ -141,6 +201,14 @@ const TheorySyllabusScreen = ({ onBack }) => {
           setShowBasicTheory(true);
         } else if (item.id === 7) {
           setShowStances(true);
+        } else if (item.id === 11) {
+          setShowPracticeSuit(true);
+        } else if (item.id === 14) {
+          setShowInstructorTitles(true);
+        } else if (item.id === 12) {
+          setShowDoJang(true);
+        } else if (item.id === 13) {
+          setShowMoralCulture(true);
         } else if (item.id === 5) {
           setShowBodyParts(true);
         } else if (item.id === 10) {
@@ -151,6 +219,8 @@ const TheorySyllabusScreen = ({ onBack }) => {
           setShowTheoryQuestions(true);
         } else if (item.id === 3) {
           setShowAllBelts(true);
+        } else if (item.id === 15) {
+          setShowPatterns(true);
         } else if (item.id === 6) {
           setShowSparring(true);
         } else if (item.id === 2) {
@@ -186,6 +256,22 @@ const TheorySyllabusScreen = ({ onBack }) => {
     return <StancesScreen onBack={() => setShowStances(false)} />;
   }
 
+  if (showPracticeSuit) {
+    return <PracticeSuitScreen onBack={() => setShowPracticeSuit(false)} />;
+  }
+
+  if (showInstructorTitles) {
+    return <InstructorTitlesScreen onBack={() => setShowInstructorTitles(false)} />;
+  }
+
+  if (showDoJang) {
+    return <DoJangScreen onBack={() => setShowDoJang(false)} />;
+  }
+
+  if (showMoralCulture) {
+    return <MoralCultureScreen onBack={() => setShowMoralCulture(false)} />;
+  }
+
   if (showBodyParts) {
     return <BodyPartsScreen onBack={() => setShowBodyParts(false)} />;
   }
@@ -206,11 +292,16 @@ const TheorySyllabusScreen = ({ onBack }) => {
     return <BeltsScreen onBack={() => setShowAllBelts(false)} />;
   }
 
+  if (showPatterns) {
+    return <PatternsScreen onBack={() => setShowPatterns(false)} />;
+  }
+
   if (showSparring) {
     if (selectedSparringType) {
       return (
         <SparringScreen
-          sparring={selectedSparringType}
+          sparring={selectedSparringType.type}
+          sparringData={selectedSparringType}
           onBack={() => setSelectedSparringType(null)}
         />
       );
@@ -218,7 +309,7 @@ const TheorySyllabusScreen = ({ onBack }) => {
     return (
       <SparringListScreen
         onBack={() => setShowSparring(false)}
-        onSelectSparring={(type) => setSelectedSparringType(type)}
+        onSelectSparring={(type, data) => setSelectedSparringType(data)}
       />
     );
   }
@@ -321,7 +412,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1f2937',
+    backgroundColor: '#006CB5',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
@@ -347,7 +438,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#006CB5',
   },
   mainTitle: {
     fontSize: 24,

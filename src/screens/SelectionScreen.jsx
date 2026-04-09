@@ -22,6 +22,7 @@ const OPTIONS = [
     icon: '🎓',
     accent: '#006CB5',
     bg: '#EBF5FF',
+    iconDark: true,
   },
   {
     key: 'practical',
@@ -30,6 +31,8 @@ const OPTIONS = [
     icon: '🥋',
     accent: '#1a1a2e',
     bg: '#EEEEF5',
+    arrowBg: '#EEEEF5',
+    iconDark: true,
   },
   {
     key: 'theory',
@@ -38,6 +41,7 @@ const OPTIONS = [
     icon: '📖',
     accent: '#C0392B',
     bg: '#FDECEA',
+    iconDark: true,
   },
 ];
 
@@ -108,7 +112,7 @@ const SelectionScreen = ({ onSelect }) => {
 
               {/* Icon bubble */}
               <View style={[styles.iconBubble, { backgroundColor: opt.bg }]}>
-                <Text style={styles.iconText}>{opt.icon}</Text>
+                <Text style={[styles.iconText, opt.iconDark && styles.iconDark]}>{opt.icon}</Text>
               </View>
 
               {/* Text */}
@@ -118,7 +122,7 @@ const SelectionScreen = ({ onSelect }) => {
               </View>
 
               {/* Arrow */}
-              <View style={[styles.arrowCircle, { backgroundColor: opt.bg }]}>
+              <View style={[styles.arrowCircle, { backgroundColor: opt.arrowBg || opt.bg }]}>
                 <Text style={[styles.arrowIcon, { color: opt.accent }]}>›</Text>
               </View>
             </TouchableOpacity>
@@ -229,6 +233,12 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 26,
+  },
+  iconDark: {
+    color: '#1a1a2e',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 1,
   },
   cardText: {
     flex: 1,

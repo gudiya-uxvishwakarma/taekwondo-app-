@@ -13,7 +13,7 @@ export const runNetworkDiagnostics = async () => {
   // Test 1: Local development IP
   console.log('📡 Testing Local development IP...');
   try {
-    const response = await fetch('http://192.168.1.48:5000/api/health', {
+    const response = await fetch('http://192.168.1.22:9000/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -23,7 +23,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localDevelopment = {
       success: response.ok,
       status: response.status,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     if (response.ok) {
       console.log('✅ Local development works!');
@@ -34,7 +34,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localDevelopment = {
       success: false,
       error: error.message,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     console.log('❌ Local development error:', error.message);
   }
@@ -42,7 +42,7 @@ export const runNetworkDiagnostics = async () => {
   // Test 2: Localhost (with ADB reverse)
   console.log('📡 Testing localhost (with ADB reverse)...');
   try {
-    const response = await fetch('http://192.168.1.48:5000/api/health', {
+    const response = await fetch('http://192.168.1.22:9000/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localhost = {
       success: response.ok,
       status: response.status,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     if (response.ok) {
       console.log('✅ Localhost works!');
@@ -63,7 +63,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.localhost = {
       success: false,
       error: error.message,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     console.log('❌ Localhost error:', error.message);
   }
@@ -71,7 +71,7 @@ export const runNetworkDiagnostics = async () => {
   // Test 3: Android Emulator IP (10.0.2.2)
   console.log('📡 Testing Android emulator IP (10.0.2.2)...');
   try {
-    const response = await fetch('http://192.168.1.48:5000/api/health', {
+    const response = await fetch('http://192.168.1.22:9000/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.emulatorIP = {
       success: response.ok,
       status: response.status,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     if (response.ok) {
       console.log('✅ Emulator IP works!');
@@ -92,7 +92,7 @@ export const runNetworkDiagnostics = async () => {
     results.tests.emulatorIP = {
       success: false,
       error: error.message,
-      url: 'http://192.168.1.48:5000/api/health',
+      url: 'http://192.168.1.22:9000/api/health',
     };
     console.log('❌ Emulator IP error:', error.message);
   }
@@ -148,7 +148,7 @@ export const runNetworkDiagnostics = async () => {
       '1. Make sure backend server is running: cd Taekwondo_backend && npm start',
       '2. Run ADB port forwarding: adb reverse tcp:5000 tcp:5000',
       '3. Check Windows Firewall settings',
-      '4. Verify backend is accessible at http://192.168.1.48:5000/api/health',
+      '4. Verify backend is accessible at http://192.168.1.22:9000/api/health',
       '5. Try restarting the Android emulator',
     ];
   } else if (results.tests.localDevelopment?.success) {
@@ -184,11 +184,11 @@ export const getRecommendedApiUrl = async () => {
   const diagnostics = await runNetworkDiagnostics();
 
   if (diagnostics.tests.localDevelopment?.success) {
-    return 'http://192.168.1.48:5000/api';
+    return 'http://192.168.1.22:9000/api';
   } else if (diagnostics.tests.localhost?.success) {
-    return 'http://192.168.1.48:5000/api';
+    return 'http://192.168.1.22:9000/api';
   } else if (diagnostics.tests.emulatorIP?.success) {
-    return 'http://192.168.1.48:5000/api';
+    return 'http://192.168.1.22:9000/api';
   } else {
     return null; // No working connection found
   }

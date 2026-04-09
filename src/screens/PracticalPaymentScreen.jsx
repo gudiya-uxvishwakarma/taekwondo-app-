@@ -29,7 +29,7 @@ const BELTS = [
 
 const FEATURES = [
   { icon: 'menu-book',        label: 'Full Syllabus',      desc: 'All belt levels covered' },
-  { icon: 'sports-martial-arts', label: 'Techniques',      desc: '300+ moves & patterns'  },
+  { icon: 'sports-mma',        label: 'Techniques',      desc: '300+ moves & patterns'  },
   { icon: 'emoji-events',     label: 'Grading Guide',      desc: 'Exam prep & tips'        },
   { icon: 'trending-up',      label: 'Track Progress',     desc: 'Monitor your journey'    },
 ];

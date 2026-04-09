@@ -133,7 +133,7 @@ const AppInfoScreen = ({ onBack }) => {
         <InfoRow icon="info" label="Version" value="1.0.0" />
         <InfoRow icon="phone-android" label="Platform" value="Android / iOS" />
         <InfoRow icon="language" label="Style" value="ITF Taekwon-Do" />
-        <InfoRow icon="update" label="Last Updated" value="March 2026" />
+       
       </SectionCard>
 
       {/* About */}
@@ -167,20 +167,9 @@ const AppInfoScreen = ({ onBack }) => {
 
       {/* Contact */}
       <SectionCard title="Contact & Support">
-        <InfoRow icon="email" label="Email" value="support@tkdstudy.com" />
-        <InfoRow icon="language" label="Website" value="www.tkdstudy.com" />
-        <TouchableOpacity style={styles.feedbackBtn} onPress={() => setFeedbackOpen(true)} activeOpacity={0.8}>
-          <View style={styles.feedbackBtnLeft}>
-            <View style={styles.infoIconBox}>
-              <Icon name="star-rate" size={20} color="#006CB5" type="MaterialIcons" />
-            </View>
-            <View>
-              <Text style={styles.infoLabel}>Rate & Feedback</Text>
-              <Text style={styles.infoValue}>Rate the app & share your thoughts</Text>
-            </View>
-          </View>
-          <Icon name="chevron-right" size={18} color="#9ca3af" type="MaterialIcons" />
-        </TouchableOpacity>
+        <InfoRow icon="email" label="Email" value="contact@cwtakarnataka.com" />
+        <InfoRow icon="language" label="Website" value="cwtakarnataka.com" />
+      
       </SectionCard>
 
       {/* Legal */}
