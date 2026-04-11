@@ -14,6 +14,14 @@ const VIDEO_HEIGHT = Math.round(SH * 0.55);
 let Video = null;
 try { Video = require('react-native-video').default; } catch (e) {}
 
+// Try to import orientation locker, fallback if not available
+let Orientation = null;
+try {
+  Orientation = require('react-native-orientation-locker').default;
+} catch (e) {
+  console.log('Orientation locker not available:', e.message);
+}
+
 const BASE_URL = API_CONFIG.BASE_URL.replace('/api', '');
 
 const getVideoUri = (url) => {
@@ -131,8 +139,54 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
     else { setPaused(true); setShowControls(true); if (hideTimer.current) clearTimeout(hideTimer.current); }
   };
 
-  const onFullscreen = () => { setFullscreen(true); setShowControls(true); if (!paused) scheduleHide(); };
-  const onExitFullscreen = () => { setFullscreen(false); setShowControls(true); if (!paused) scheduleHide(); };
+  // Cleanup orientation on component unmount
+  React.useEffect(() => {
+    return () => {
+      if (Orientation) {
+        try {
+          Orientation.unlockAllOrientations();
+          Orientation.lockToPortrait();
+          console.log('Orientation cleanup completed');
+        } catch (error) {
+          console.log('Orientation cleanup failed:', error);
+        }
+      }
+    };
+  }, []);
+
+  const onFullscreen = () => { 
+    setFullscreen(true); 
+    setShowControls(true); 
+    if (!paused) scheduleHide();
+    // Lock orientation to landscape when entering fullscreen
+    if (Orientation) {
+      try {
+        console.log('Locking to landscape...');
+        Orientation.lockToLandscape();
+      } catch (error) {
+        console.log('Failed to lock orientation:', error);
+      }
+    }
+  };
+  
+  const onExitFullscreen = () => { 
+    setFullscreen(false); 
+    setShowControls(true); 
+    if (!paused) scheduleHide();
+    // Unlock orientation when exiting fullscreen
+    if (Orientation) {
+      try {
+        console.log('Returning to portrait...');
+        Orientation.unlockAllOrientations();
+        // Return to portrait after a short delay
+        setTimeout(() => {
+          Orientation.lockToPortrait();
+        }, 100);
+      } catch (error) {
+        console.log('Failed to unlock orientation:', error);
+      }
+    }
+  };
 
   if (loading) return (
     <View style={styles.safeArea}>
@@ -163,15 +217,22 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
 
       {/* ── FULLSCREEN MODAL (landscape) ── */}
-      <Modal visible={fullscreen} transparent={false} animationType="fade" statusBarTranslucent supportedOrientations={['landscape']}>
+      <Modal 
+        visible={fullscreen} 
+        transparent={false} 
+        animationType="fade" 
+        statusBarTranslucent 
+        supportedOrientations={['landscape', 'landscape-left', 'landscape-right', 'portrait']}
+        onRequestClose={onExitFullscreen}
+      >
         <StatusBar hidden />
         <View style={styles.fsContainer}>
           {hasVideo && (
             <Video
               ref={videoRef}
               source={{ uri: videoUri }}
-              style={styles.fill}
-              resizeMode="contain"
+              style={styles.fillFullscreen}
+              resizeMode="cover"
               paused={paused}
               bufferConfig={{ minBufferMs: 2500, maxBufferMs: 20000, bufferForPlaybackMs: 1500, bufferForPlaybackAfterRebufferMs: 2000 }}
               onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
@@ -183,7 +244,7 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
             />
           )}
           {buffering && <View style={styles.centerAbs} pointerEvents="none"><ActivityIndicator size="large" color="#fff" /></View>}
-          <TouchableOpacity style={styles.fill} activeOpacity={1} onPress={onTapVideo} />
+          <TouchableOpacity style={styles.fillFullscreen} activeOpacity={1} onPress={onTapVideo} />
           {showControls && (
             <View style={styles.ctrlOverlay} pointerEvents="box-none">
               <View style={styles.ctrlRow} pointerEvents="box-none">
@@ -347,7 +408,12 @@ const styles = StyleSheet.create({
   thumbOverlayActive: { borderColor: '#006CB5' },
   thumbLabel: { color: '#9ca3af', fontSize: 10, textAlign: 'center', marginTop: 4, width: 90 },
   thumbLabelActive: { color: '#fff' },
-  fsContainer: { flex: 1, backgroundColor: '#000' },
+  fsContainer: { flex: 1, backgroundColor: '#000', width: '100%', height: '100%' },
+  fillFullscreen: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%', height: '100%',
+  },
   bottomRow: { flexDirection: 'row', alignItems: 'center', width: '100%', paddingBottom: 8, gap: 8 },
   fsBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
 });

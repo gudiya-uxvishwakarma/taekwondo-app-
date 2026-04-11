@@ -13,6 +13,14 @@ const VIDEO_HEIGHT = Math.round(SH * 0.55);
 let Video = null;
 try { Video = require('react-native-video').default; } catch (e) {}
 
+// Try to import orientation locker, fallback if not available
+let Orientation = null;
+try {
+  Orientation = require('react-native-orientation-locker').default;
+} catch (e) {
+  console.log('Orientation locker not available:', e.message);
+}
+
 function optimizeVideoUrl(url) {
   if (!url) return url;
   return url;
@@ -118,13 +126,50 @@ export default function TechniqueDetailScreen({ technique, onBack, onVideoWatch 
     setFullscreen(true);
     setShowControls(true);
     if (!paused) scheduleHide();
+    // Lock orientation to landscape when entering fullscreen
+    if (Orientation) {
+      try {
+        console.log('Locking to landscape...');
+        Orientation.lockToLandscape();
+      } catch (error) {
+        console.log('Failed to lock orientation:', error);
+      }
+    }
   };
 
   const onExitFullscreen = () => {
     setFullscreen(false);
     setShowControls(true);
     if (!paused) scheduleHide();
+    // Unlock orientation when exiting fullscreen
+    if (Orientation) {
+      try {
+        console.log('Returning to portrait...');
+        Orientation.unlockAllOrientations();
+        // Return to portrait after a short delay
+        setTimeout(() => {
+          Orientation.lockToPortrait();
+        }, 100);
+      } catch (error) {
+        console.log('Failed to unlock orientation:', error);
+      }
+    }
   };
+
+  // Cleanup orientation on component unmount
+  React.useEffect(() => {
+    return () => {
+      if (Orientation) {
+        try {
+          Orientation.unlockAllOrientations();
+          Orientation.lockToPortrait();
+          console.log('Orientation cleanup completed');
+        } catch (error) {
+          console.log('Orientation cleanup failed:', error);
+        }
+      }
+    };
+  }, []);
 
   // Shared video controls UI — used in both normal and fullscreen
   const renderControls = (isFS) => (
@@ -173,13 +218,20 @@ export default function TechniqueDetailScreen({ technique, onBack, onVideoWatch 
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
 
       {/* ── FULLSCREEN MODAL ── */}
-      <Modal visible={fullscreen} transparent={false} animationType="fade" statusBarTranslucent supportedOrientations={['landscape']}>
+      <Modal 
+        visible={fullscreen} 
+        transparent={false} 
+        animationType="fade" 
+        statusBarTranslucent 
+        supportedOrientations={['landscape', 'landscape-left', 'landscape-right', 'portrait']}
+        onRequestClose={onExitFullscreen}
+      >
         <StatusBar hidden />
         <View style={s.fsContainer}>
           <Video
             ref={videoRef}
             source={{ uri: videoUrl }}
-            style={s.fill}
+            style={s.fillFullscreen}
             resizeMode="cover"
             paused={paused}
             bufferConfig={{
@@ -198,7 +250,7 @@ export default function TechniqueDetailScreen({ technique, onBack, onVideoWatch 
               <ActivityIndicator size="large" color="#fff" />
             </View>
           )}
-          <TouchableOpacity style={s.fill} activeOpacity={1} onPress={onTapVideo} />
+          <TouchableOpacity style={s.fillFullscreen} activeOpacity={1} onPress={onTapVideo} />
           {showControls && renderControls(true)}
         </View>
       </Modal>
@@ -385,6 +437,13 @@ const s = StyleSheet.create({
   fsContainer: {
     flex: 1,
     backgroundColor: '#000',
+    width: '100%', 
+    height: '100%',
+  },
+  fillFullscreen: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%', height: '100%',
   },
 
   /* Back button */

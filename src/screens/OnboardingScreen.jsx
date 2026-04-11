@@ -58,13 +58,36 @@ const OnboardingScreen = ({ onFinish }) => {
       try {
         const res = await axios.get(`${baseUrl}/onboarding`, { timeout: 8000 });
         const data = res.data;
+        
         if (Array.isArray(data) && data.length > 0) {
-          setSlides(data);
+          const serverBase = baseUrl.replace('/api', '');
+          
+          const processedSlides = data.map(slide => {
+            let processedImage = null;
+            
+            if (slide.image) {
+              if (slide.image.startsWith('http')) {
+                processedImage = slide.image;
+              } else if (slide.image.includes('uploads')) {
+                const relativePath = slide.image.substring(slide.image.indexOf('uploads'));
+                processedImage = `${serverBase}/${relativePath}`;
+              } else {
+                processedImage = `${serverBase}/${slide.image}`;
+              }
+            }
+            
+            return {
+              ...slide,
+              image: processedImage
+            };
+          });
+          
+          setSlides(processedSlides);
           fetched = true;
           break;
         }
-      } catch {
-        // try next URL
+      } catch (error) {
+        console.log('Failed to fetch onboarding slides:', error.message);
       }
     }
     if (!fetched) setSlides(FALLBACK_SLIDES);
