@@ -62,6 +62,7 @@ const BasicTheoryScreen = ({ onBack }) => {
   const [selectedTenet, setSelectedTenet] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const scrollRef = useRef(null);
+  const [expandedPoints, setExpandedPoints] = useState({}); // Track expanded point descriptions
 
   // API data
   const [dynasties, setDynasties] = useState([]);
@@ -83,6 +84,14 @@ const BasicTheoryScreen = ({ onBack }) => {
     fetch(`${API_BASE}/theory-syllabus/basic-theory`)
       .then(r => r.json()).then(d => { setBasicTheoryItems(d.data || []); }).catch(() => {});
   }, []);
+
+  const togglePointDescription = (itemId, groupIndex, pointIndex) => {
+    const key = `${itemId}-${groupIndex}-${pointIndex}`;
+    setExpandedPoints(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const handleTabPress = (index) => {
     setActiveTab(index);
@@ -145,7 +154,7 @@ const BasicTheoryScreen = ({ onBack }) => {
                 style={styles.btSection}
               >
                 <View style={styles.btTitleRow}>
-                  <View style={{ flex: 1, paddingRight: item.image ? 112 : 0 }}>
+                  <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                       <Text style={styles.btTitle}>{item.title}</Text>
                       {item.koreanName ? <Text style={styles.btKorean}> ({item.koreanName})</Text> : null}
@@ -155,7 +164,46 @@ const BasicTheoryScreen = ({ onBack }) => {
                     </View>
                     {item.subtitle ? <Text style={styles.btSubtitle}>{item.subtitle}</Text> : null}
                     {item.description ? <Text style={styles.btDescription}>{item.description}</Text> : null}
-                    {item.points?.length > 0 ? item.points.map((p, i) => {
+                    
+                    {/* Render heading-point groups */}
+                    {item.headingPointGroups?.length > 0 ? item.headingPointGroups.map((group, groupIndex) => (
+                      <View key={groupIndex} style={styles.btGroup}>
+                        {group.heading ? <Text style={styles.btGroupHeading}>{group.heading}</Text> : null}
+                        {group.points?.map((point, pointIndex) => {
+                          const hasDescription = point.description && point.description.trim();
+                          const expandKey = `${item._id}-${groupIndex}-${pointIndex}`;
+                          const isExpanded = expandedPoints[expandKey];
+                          
+                          return (
+                            <View key={pointIndex} style={styles.btPointContainer}>
+                              <View style={styles.btPointRow}>
+                                <Text style={styles.btPoint}>• {point.text}</Text>
+                                {hasDescription ? (
+                                  <TouchableOpacity
+                                    onPress={() => togglePointDescription(item._id, groupIndex, pointIndex)}
+                                    style={styles.expandButton}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Icon 
+                                      name={isExpanded ? "remove" : "add"} 
+                                      size={16} 
+                                      color="#006CB5" 
+                                      type="MaterialIcons" 
+                                    />
+                                  </TouchableOpacity>
+                                ) : null}
+                              </View>
+                              {hasDescription && isExpanded ? (
+                                <Text style={styles.btPointDescription}>{point.description}</Text>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )) : null}
+
+                    {/* Fallback: Render old points structure for backward compatibility */}
+                    {!item.headingPointGroups?.length && item.points?.length > 0 ? item.points.map((p, i) => {
                       const hasDetail = p.details?.length > 0;
                       return (
                         <TouchableOpacity
@@ -293,7 +341,7 @@ const BasicTheoryScreen = ({ onBack }) => {
                 {section.title ? <Text style={styles.modalSectionTitle}>{section.title}</Text> : null}
                 {section.subtitle ? <Text style={styles.modalSubtitle}>{section.subtitle}</Text> : null}
                 {(section.paragraphs || []).map((p, pi) => (
-                  <Text key={pi} style={[styles.modalText, { marginTop: pi > 0 ? spacing.md : 4 }]}>{p}</Text>
+                  <Text key={pi} style={[styles.modalText, { marginTop: pi > 0 ? spacing.xs : 4 }]}>{p}</Text>
                 ))}
                 {(section.points || []).map((p, pi) => (
                   <View key={pi} style={styles.sheetPointRow}>
@@ -405,16 +453,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#1f2937',
     textAlign: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: spacing.md,
     letterSpacing: 1,
   },
   btSection: {
-    marginBottom: spacing.lg,
-    paddingBottom: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   btTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   btTitle: {
     fontSize: 18,
@@ -426,17 +475,15 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   btCornerImage: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     borderRadius: 12,
-    position: 'absolute',
-    right: 0,
-    top: 0,
     backgroundColor: '#e5e7eb',
+    marginLeft: spacing.sm,
   },
   btImage: {
     width: '100%',
-    height: 180,
+    height: 200,
     borderRadius: 10,
     marginBottom: spacing.sm,
     backgroundColor: '#e5e7eb',
@@ -446,7 +493,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 24,
     marginTop: 4,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   btSubtitle: {
     fontSize: 14,
@@ -458,7 +505,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   btPoint: {
     fontSize: 15,
@@ -466,22 +513,49 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     flex: 1,
   },
+  btGroup: {
+    marginTop: spacing.xs,
+  },
+  btGroupHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  btPointContainer: {
+    marginBottom: 2,
+  },
+  expandButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  btPointDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    marginTop: 4,
+    marginLeft: 16,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#e5e7eb',
+  },
   sectionHeading: {
     fontSize: 20,
     fontWeight: '800',
     color: '#1f2937',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   sectionBody: {
     fontSize: 16,
     color: '#374151',
     lineHeight: 26,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   tenetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -489,23 +563,23 @@ const styles = StyleSheet.create({
   tenetKorean: { fontSize: 13, color: '#6b7280', marginRight: spacing.sm },
   founderCard: {
     flexDirection: 'row',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     alignItems: 'flex-start',
   },
-  founderLeft: { flex: 1, marginRight: spacing.md },
+  founderLeft: { flex: 1, marginRight: spacing.sm },
   founderName: {
     fontSize: 20,
     fontWeight: '800',
     color: '#1f2937',
     lineHeight: 30,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   readMoreButton: {
     borderWidth: 2,
     borderColor: '#006CB5',
     borderRadius: 12,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     alignSelf: 'flex-start',
   },
   readMoreText: {
@@ -516,14 +590,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   founderImage: {
-    width: 160,
-    height: 180,
+    width: 180,
+    height: 200,
     borderRadius: 8,
     backgroundColor: '#e5e7eb',
   },
   dobokSection: {
     flexDirection: 'row',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     alignItems: 'flex-start',
   },
   dobokText: {
@@ -531,7 +605,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
     lineHeight: 26,
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   dobokLogoContainer: {
     alignItems: 'center',
@@ -558,7 +632,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 4,
   },
-  powerItem: { marginBottom: spacing.lg },
+  powerItem: { marginBottom: spacing.sm },
   powerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -571,8 +645,8 @@ const styles = StyleSheet.create({
   kwanRow: {
     backgroundColor: '#f9fafb',
     borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
     borderLeftWidth: 3,
     borderLeftColor: '#16a34a',
   },
@@ -590,14 +664,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    marginBottom: spacing.md,
-    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   itfBadge: { width: 120, height: 120 },
   itfWordmark: { width: 160, height: 80 },
   bottomSpace: { height: 40 },
   dynastyRow: {
-    paddingVertical: 10,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -613,7 +687,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   historyRow: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -732,7 +806,7 @@ const styles = StyleSheet.create({
     color: '#006CB5',
     marginBottom: spacing.sm,
   },
-  modalText: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.md },
+  modalText: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.xs },
 });
 
 export default BasicTheoryScreen;

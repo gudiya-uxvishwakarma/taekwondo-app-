@@ -51,8 +51,16 @@ const KicksScreen = ({ onBack, onVideoWatch }) => {
         // Server responded — use its data (even if empty)
         const cats = catRes.data || [];
         const techs = techRes.data || [];
+        
+        // Sort techniques by creation date (newest first)
+        const sortedTechs = techs.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.created_at || 0);
+          const dateB = new Date(b.createdAt || b.created_at || 0);
+          return dateB - dateA; // Newest first
+        });
+        
         setCategories(cats);
-        setTechniques(techs);
+        setTechniques(sortedTechs);
         setSelectedCategory(cats[0]?.name || '');
         setLoading(false);
         return; // done

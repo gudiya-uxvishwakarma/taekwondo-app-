@@ -46,10 +46,15 @@ const MoralCultureScreen = ({ onBack }) => {
       {item.title       ? <Text style={styles.title}>{item.title}</Text>             : null}
       {item.subtitle    ? <Text style={styles.subtitle}>{item.subtitle}</Text>       : null}
       {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-      {(item.points || []).map((p, i) => (
-        <View key={i} style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={styles.bulletText}>{p}</Text>
+      {(item.headingPointGroups || []).map((group, groupIdx) => (
+        <View key={groupIdx} style={styles.groupContainer}>
+          {group.heading ? <Text style={styles.heading}>{group.heading}</Text> : null}
+          {(group.points || []).map((point, pointIdx) => (
+            <View key={pointIdx} style={styles.bulletRow}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.bulletText}>{point}</Text>
+            </View>
+          ))}
         </View>
       ))}
       {(item.images || []).map((img, i) => (
@@ -170,11 +175,13 @@ const styles = StyleSheet.create({
 
   // Content
   scroll: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  section: { marginBottom: spacing.lg },
+  section: { marginBottom: spacing.md },
   title: { fontSize: 22, fontWeight: '900', color: '#1f2937', marginBottom: spacing.xs },
-  subtitle: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginTop: spacing.md, marginBottom: spacing.xs },
-  description: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.md },
-  bulletRow: { flexDirection: 'row', marginBottom: spacing.sm, paddingRight: spacing.sm },
+  subtitle: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginTop: spacing.sm, marginBottom: spacing.xs },
+  description: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.sm },
+  groupContainer: { marginBottom: spacing.xs },
+  heading: { fontSize: 16, fontWeight: '700', color: '#374151', marginTop: spacing.sm, marginBottom: spacing.xs },
+  bulletRow: { flexDirection: 'row', marginBottom: spacing.xs, paddingRight: spacing.sm },
   bullet: { color: '#374151', fontSize: 15, marginRight: 8, marginTop: 2 },
   bulletText: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 24 },
   image: { width: W - spacing.md * 2, height: 260, borderRadius: 8, marginVertical: spacing.md, backgroundColor: '#f1f5f9' },

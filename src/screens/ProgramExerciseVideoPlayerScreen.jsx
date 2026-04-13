@@ -74,7 +74,15 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
             : eq === 'noChair' || eq === 'all';
           return levelMatch && eqMatch && ex.videoUrl;
         });
-        const mapped = filtered.map((ex, i) => ({
+        
+        // Sort filtered exercises by creation date (newest first)
+        const sortedFiltered = filtered.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.created_at || 0);
+          const dateB = new Date(b.createdAt || b.created_at || 0);
+          return dateB - dateA; // Newest first
+        });
+        
+        const mapped = sortedFiltered.map((ex, i) => ({
           ...ex,
           id: ex._id || i,
           videoUrl: getVideoUri(ex.videoUrl),

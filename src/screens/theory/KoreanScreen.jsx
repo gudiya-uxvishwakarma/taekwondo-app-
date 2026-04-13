@@ -23,18 +23,43 @@ const KoreanScreen = ({ onBack }) => {
   useEffect(() => {
     fetch(`${API_CONFIG.BASE_URL}/korean`)
       .then(r => r.json())
-      .then(d => { setItems(d.data || []); setLoading(false); })
+      .then(d => { 
+        const data = d.data || [];
+        // Sort by creation date (oldest first for consistent creation order)
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.created_at || 0);
+          const dateB = new Date(b.createdAt || b.created_at || 0);
+          return dateA - dateB; // Oldest first (creation order)
+        });
+        setItems(sortedData); 
+        setLoading(false); 
+      })
       .catch(() => setLoading(false));
   }, []);
 
-  // Group by section preserving order
+  // Group by section preserving creation order of sections
   const sections = [];
   const seen = new Set();
   items.forEach(item => {
     if (!seen.has(item.section)) {
       seen.add(item.section);
-      sections.push({ section: item.section, sectionKorean: item.sectionKorean || '', items: [] });
+      // Find the earliest creation date for this section to maintain section order
+      const sectionItems = items.filter(i => i.section === item.section);
+      const earliestDate = Math.min(...sectionItems.map(i => new Date(i.createdAt || i.created_at || 0)));
+      sections.push({ 
+        section: item.section, 
+        sectionKorean: item.sectionKorean || '', 
+        items: [],
+        earliestDate: earliestDate
+      });
     }
+  });
+
+  // Sort sections by their earliest creation date (first created section appears first)
+  sections.sort((a, b) => a.earliestDate - b.earliestDate);
+
+  // Add items to their respective sections, keeping newest items first within each section
+  items.forEach(item => {
     sections.find(s => s.section === item.section).items.push(item);
   });
 

@@ -48,9 +48,17 @@ const BeltDetailScreen = ({ belt, onBack }) => {
         const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
 
         const filtered = list.filter(ex => !ex.beltName || ex.beltName === beltName);
-        setTotalExercises(filtered.length);
+        
+        // Sort filtered exercises by creation date (newest first)
+        const sortedFiltered = filtered.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.created_at || 0);
+          const dateB = new Date(b.createdAt || b.created_at || 0);
+          return dateB - dateA; // Newest first
+        });
+        
+        setTotalExercises(sortedFiltered.length);
 
-        const mapped = filtered.map((ex, i) => ({
+        const mapped = sortedFiltered.map((ex, i) => ({
           id: ex._id || i,
           _id: ex._id,
           name: ex.name,

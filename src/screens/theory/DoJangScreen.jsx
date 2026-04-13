@@ -13,28 +13,44 @@ const DoJangScreen = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('DoJangScreen: Fetching data from:', `${API_CONFIG.BASE_URL}/do-jang`);
     fetch(`${API_CONFIG.BASE_URL}/do-jang`)
       .then(r => r.json())
-      .then(d => { setItems(d.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => { 
+        console.log('DoJangScreen: Received data:', JSON.stringify(d, null, 2));
+        setItems(d.data || []); 
+        setLoading(false); 
+      })
+      .catch(err => {
+        console.error('DoJangScreen: Error fetching data:', err);
+        setLoading(false);
+      });
   }, []);
 
-  const renderItem = (item, idx) => (
-    <View key={item._id || idx} style={styles.section}>
-      {item.title       ? <Text style={styles.title}>{item.title}</Text>           : null}
-      {item.subtitle    ? <Text style={styles.subtitle}>{item.subtitle}</Text>     : null}
-      {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-      {(item.points || []).map((p, i) => (
-        <View key={i} style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={styles.bulletText}>{p}</Text>
-        </View>
-      ))}
-      {(item.images || []).map((img, i) => (
-        <Image key={i} source={{ uri: `${BASE_URL}${img}` }} style={styles.image} resizeMode="contain" />
-      ))}
-    </View>
-  );
+  const renderItem = (item, idx) => {
+    console.log('DoJangScreen: Rendering item:', JSON.stringify(item, null, 2));
+    return (
+      <View key={item._id || idx} style={styles.section}>
+        {item.title       ? <Text style={styles.title}>{item.title}</Text>           : null}
+        {item.subtitle    ? <Text style={styles.subtitle}>{item.subtitle}</Text>     : null}
+        {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+        {(item.headingPointGroups || []).map((group, groupIdx) => (
+          <View key={groupIdx} style={styles.groupContainer}>
+            {group.heading ? <Text style={styles.heading}>{group.heading}</Text> : null}
+            {(group.points || []).map((point, pointIdx) => (
+              <View key={pointIdx} style={styles.bulletRow}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.bulletText}>{point}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
+        {(item.images || []).map((img, i) => (
+          <Image key={i} source={{ uri: `${BASE_URL}${img}` }} style={styles.image} resizeMode="contain" />
+        ))}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -73,11 +89,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff', flex: 1, textAlign: 'center' },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  section: { marginBottom: spacing.lg },
+  section: { marginBottom: spacing.md },
   title: { fontSize: 22, fontWeight: '900', color: '#1f2937', marginBottom: spacing.xs },
-  subtitle: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginTop: spacing.md, marginBottom: spacing.xs },
-  description: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.md },
-  bulletRow: { flexDirection: 'row', marginBottom: spacing.sm, paddingRight: spacing.sm },
+  subtitle: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginTop: spacing.sm, marginBottom: spacing.xs },
+  description: { fontSize: 15, color: '#374151', lineHeight: 24, marginBottom: spacing.sm },
+  groupContainer: { marginBottom: spacing.xs },
+  heading: { fontSize: 16, fontWeight: '700', color: '#374151', marginTop: spacing.sm, marginBottom: spacing.xs },
+  bulletRow: { flexDirection: 'row', marginBottom: spacing.xs, paddingRight: spacing.sm },
   bullet: { color: '#374151', fontSize: 15, marginRight: 8, marginTop: 2 },
   bulletText: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 24 },
   image: { width: W - spacing.md * 2, height: 260, borderRadius: 8, marginVertical: spacing.md, backgroundColor: '#f1f5f9' },
