@@ -53,6 +53,10 @@ const PatternsScreen = ({ onBack }) => {
       const [pd, nsd, nsl, kd, nd] = await Promise.all([
         pRes.json(), nsDescRes.json(), nsListRes.json(), kicksRes.json(), numRes.json(),
       ]);
+      
+      // Debug: Log the non-standard-list data
+      console.log('📊 Non-standard List Data:', JSON.stringify(nsl.data, null, 2));
+      
       setPatterns((pd.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
       setSlideData({
         'non-standard-desc':   (nsd.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
@@ -194,9 +198,10 @@ const NsListSlide = ({ data, onSelectDetail }) => (
       <View key={i} style={styles.section}>
         {!!item.title && <Text style={styles.sectionTitle}>{item.title}</Text>}
         {(item.points || []).map((pt, pi) => {
-          const hasEntries = (pt.kickEntries || []).length > 0;
+          // Check for both new patternEntries and old kickEntries for backward compatibility
+          const hasEntries = (pt.patternEntries || pt.kickEntries || []).length > 0;
           return hasEntries ? (
-            <TouchableOpacity key={pi} style={styles.techRow} onPress={() => onSelectDetail({ ...pt, isKick: true })} activeOpacity={0.7}>
+            <TouchableOpacity key={pi} style={styles.techRow} onPress={() => onSelectDetail({ ...pt, isNonStandardList: true })} activeOpacity={0.7}>
               <Text style={styles.techName}>{pt.text}</Text>
               <Icon name="chevron-right" size={18} color="#9ca3af" type="MaterialIcons" />
             </TouchableOpacity>
@@ -242,6 +247,11 @@ const KicksSlide = ({ data, onSelectKick }) => (
 // ── Slide point detail page (handles both ns-list details and kick entries) ───
 const SlidePointDetailPage = ({ detail, onBack }) => {
   const isKick = detail.isKick;
+  const isNonStandardList = detail.isNonStandardList;
+  
+  // Debug: Log the detail data
+  console.log('🔍 SlidePointDetailPage received detail:', JSON.stringify(detail, null, 2));
+  
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={BLUE} />
@@ -253,7 +263,100 @@ const SlidePointDetailPage = ({ detail, onBack }) => {
         <View style={{ width: 40 }} />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pageContent}>
-        {isKick ? (
+        {isNonStandardList ? (
+          /* Non-standard speeds list: show pattern name, number, korean term, english description */
+          (() => {
+            // Use new patternEntries if available, fallback to old kickEntries for backward compatibility
+            const entries = detail.patternEntries || detail.kickEntries || [];
+            
+            if (detail.patternEntries && detail.patternEntries.length > 0) {
+              // New structure: direct pattern entries
+              // Group entries by pattern name - show exactly what user entered
+              const groupedEntries = {};
+              detail.patternEntries.forEach(entry => {
+                // Use the exact patternName that was entered in admin panel, fallback to "Unknown Pattern"
+                const entryPatternName = entry.patternName && entry.patternName.trim() ? entry.patternName : 'Unknown Pattern';
+                if (!groupedEntries[entryPatternName]) {
+                  groupedEntries[entryPatternName] = [];
+                }
+                groupedEntries[entryPatternName].push(entry);
+              });
+              
+              return Object.keys(groupedEntries).map((pName, groupIndex) => (
+                <View key={groupIndex} style={groupIndex > 0 ? styles.patternGroup : { marginTop: 16 }}>
+                  {/* Pattern Name Header - Show exactly what user entered */}
+                  <Text style={styles.patternNameHeader}>{pName}</Text>
+                  
+                  {/* Entries for this pattern - Clean list without boxes */}
+                  <View style={{ paddingHorizontal: 16 }}>
+                    {groupedEntries[pName].map((entry, entryIndex) => (
+                      <View key={entryIndex} style={styles.patternEntry}>
+                        {/* Simple layout: number, Korean term, description */}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <Text style={styles.entryNumber}>{entry.number || (entryIndex + 1)}.</Text>
+                          <View style={{ flex: 1, marginLeft: 8 }}>
+                            {!!entry.koreanTerm && (
+                              <Text style={styles.entryKorean}>{entry.koreanTerm}</Text>
+                            )}
+                            {!!entry.description && (
+                              <Text style={styles.entryDescription}>{entry.description}</Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ));
+            } else if (detail.kickEntries && detail.kickEntries.length > 0) {
+              // Old structure: kickEntries with rows
+              const groups = [];
+              detail.kickEntries.forEach(e => {
+                // Use the exact patternName that was entered in admin panel
+                const patternName = e.patternName && e.patternName.trim() ? e.patternName : 'Unknown Pattern';
+                const last = groups[groups.length - 1];
+                if (last && last.patternName === patternName) {
+                  last.entries.push(e);
+                } else {
+                  groups.push({ patternName: patternName, entries: [e] });
+                }
+              });
+              
+              return groups.map((g, gi) => (
+                <View key={gi} style={gi > 0 ? styles.patternGroup : { marginTop: 16 }}>
+                  {/* Pattern Name Header - Show exactly what user entered */}
+                  <Text style={styles.patternNameHeader}>{g.patternName}</Text>
+                  
+                  {/* Entries for this pattern - Clean list without boxes */}
+                  <View style={{ paddingHorizontal: 16 }}>
+                    {g.entries.map((e, ei) => (
+                      <View key={ei} style={styles.patternEntry}>
+                        {/* Simple layout: number, Korean term, description */}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <Text style={styles.entryNumber}>{e.number || (ei + 1)}.</Text>
+                          <View style={{ flex: 1, marginLeft: 8 }}>
+                            {(e.rows || []).map((row, ri) => (
+                              <View key={ri} style={ri > 0 ? { marginTop: 4 } : undefined}>
+                                {!!row.koreanTerm && (
+                                  <Text style={styles.entryKorean}>{row.koreanTerm}</Text>
+                                )}
+                                {!!row.description && (
+                                  <Text style={styles.entryDescription}>{row.description}</Text>
+                                )}
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ));
+            } else {
+              return <Text style={styles.emptyText}>No pattern entries available.</Text>;
+            }
+          })()
+        ) : isKick ? (
           /* Kick entries: grouped by patternName */
           (() => {
             const entries = detail.kickEntries || [];
@@ -268,18 +371,18 @@ const SlidePointDetailPage = ({ detail, onBack }) => {
               }
             });
             return groups.map((g, gi) => (
-              <View key={gi} style={gi > 0 ? styles.kickGroup : undefined}>
-                {!!g.patternName && <Text style={styles.kickPatternName}>{g.patternName}</Text>}
+              <View key={gi} style={gi > 0 ? styles.patternGroup : undefined}>
+                {!!g.patternName && <Text style={styles.patternNameHeader}>{g.patternName}</Text>}
                 {g.entries.map((e, ei) => (
-                  <View key={ei} style={styles.kickEntry}>
-                    <View style={styles.kickLeft}>
-                      {!!e.number && <Text style={styles.kickNumber}>{e.number}</Text>}
+                  <View key={ei} style={styles.patternEntry}>
+                    <View style={styles.entryNumberContainer}>
+                      {!!e.number && <Text style={styles.entryNumber}>{e.number}</Text>}
                     </View>
-                    <View style={styles.kickRight}>
+                    <View style={styles.entryContent}>
                       {(e.rows || []).map((row, ri) => (
                         <View key={ri} style={ri > 0 ? { marginTop: 8 } : undefined}>
-                          {!!row.koreanTerm && <Text style={styles.kickKorean}>{row.koreanTerm}</Text>}
-                          {!!row.description && <Text style={styles.kickDesc}>{row.description}</Text>}
+                          {!!row.koreanTerm && <Text style={styles.entryKorean}>{row.koreanTerm}</Text>}
+                          {!!row.description && <Text style={styles.entryDescription}>{row.description}</Text>}
                         </View>
                       ))}
                     </View>
@@ -526,6 +629,55 @@ const styles = StyleSheet.create({
   kickLevel: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   kickRight: { flex: 1 },
   kickDesc: { fontSize: 13, color: '#374151', lineHeight: 20 },
+  
+  // New pattern display styles - White background, clean layout
+  patternGroup: { 
+    marginTop: 20, 
+    paddingTop: 12, 
+    borderTopWidth: 1, 
+    borderTopColor: '#f3f4f6' 
+  },
+  patternNameHeader: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: '#1f2937', 
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff', // White background
+    textAlign: 'left'
+  },
+  patternEntry: { 
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: '#ffffff' // White background - no boxes
+  },
+  entryNumberContainer: { 
+    marginBottom: 2
+  },
+  entryNumber: { 
+    fontSize: 15, 
+    fontWeight: '700', 
+    color: '#1f2937', // Dark text for better contrast on white
+    marginBottom: 2
+  },
+  entryContent: { 
+    flex: 1
+  },
+  entryKorean: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#1f2937', // Dark text
+    marginBottom: 2,
+    lineHeight: 20
+  },
+  entryDescription: { 
+    fontSize: 13, 
+    color: '#6b7280', // Gray text for description
+    lineHeight: 18,
+    marginBottom: 4
+  },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#6b7280', fontSize: 14, textAlign: 'center', marginTop: 40, paddingHorizontal: 16 },
 });

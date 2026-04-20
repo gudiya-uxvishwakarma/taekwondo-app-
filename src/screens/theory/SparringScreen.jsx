@@ -152,9 +152,25 @@ const SparringScreen = ({ sparring, sparringData, onBack }) => {
                 {expandedRoutine === routine.num && (
                   <View style={styles.routineDetails}>
                     {!!routine.title && <Text style={styles.routineTitle}>{routine.title}</Text>}
-                    {(routine.details || []).map((detail, i) => (
-                      <Text key={i} style={styles.detailText}>{detail}</Text>
-                    ))}
+                    
+                    {/* New structure: title-detail pairs */}
+                    {routine.titleDetailPairs && routine.titleDetailPairs.length > 0 ? (
+                      routine.titleDetailPairs.map((pair, pairIndex) => (
+                        <View key={pairIndex} style={styles.titleDetailSection}>
+                          {!!pair.title && (
+                            <Text style={styles.sectionSubtitle}>{pair.title}</Text>
+                          )}
+                          {(pair.details || []).map((detail, i) => (
+                            <Text key={i} style={styles.detailText}>{detail}</Text>
+                          ))}
+                        </View>
+                      ))
+                    ) : (
+                      /* Fallback for old structure */
+                      (routine.details || []).map((detail, i) => (
+                        <Text key={i} style={styles.detailText}>{detail}</Text>
+                      ))
+                    )}
                   </View>
                 )}
               </View>
@@ -230,6 +246,8 @@ const styles = StyleSheet.create({
   readMoreText: { color: '#006CB5', fontWeight: 'bold', fontSize: 12 },
   routineDetails: { paddingVertical: 12 },
   routineTitle: { fontSize: 14, fontWeight: 'bold', color: '#000', marginBottom: 12 },
+  titleDetailSection: { marginBottom: 16 },
+  sectionSubtitle: { fontSize: 13, fontWeight: 'bold', color: '#006CB5', marginBottom: 8 },
   detailText: { fontSize: 13, lineHeight: 20, color: '#333', marginBottom: 8 },
   scoringImage: { width: '100%', height: 400, marginTop: 16, marginBottom: 16 },
   sectionImage: { width: '100%', height: 300, marginTop: 16, marginBottom: 8, borderRadius: 8 },

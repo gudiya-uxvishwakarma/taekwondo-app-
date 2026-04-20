@@ -98,14 +98,14 @@ const BlockingToolsScreen = ({ onBack }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedToolIndex, setSelectedToolIndex] = useState(0);
+  const [selectedDirIndex, setSelectedDirIndex] = useState(0);
   const [selectedPartIndex, setSelectedPartIndex] = useState(0);
   const [selectedMethodIndex, setSelectedMethodIndex] = useState(0);
-  const [selectedDirIndex, setSelectedDirIndex] = useState(0);
   const [selectedAttackToolIndex, setSelectedAttackToolIndex] = useState(0);
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
+  const [dirDropdownOpen, setDirDropdownOpen] = useState(false);
   const [partDropdownOpen, setPartDropdownOpen] = useState(false);
   const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
-  const [dirDropdownOpen, setDirDropdownOpen] = useState(false);
   const [attackToolDropdownOpen, setAttackToolDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -116,28 +116,73 @@ const BlockingToolsScreen = ({ onBack }) => {
   }, []);
 
   const selected = items[selectedToolIndex];
-  const parts = selected?.parts || [];
-  const currentPart = parts[selectedPartIndex] || { part: '', methods: [] };
-  const methods = currentPart.methods || [];
-  const currentMethod = methods[selectedMethodIndex] || { method: '', tools: [] };
-  const directions = selected?.directions || [];
-  const attackTools = currentMethod.tools || [];
+  
+  // Use hierarchical data if available, otherwise fall back to legacy format
+  const hierarchicalData = selected?.hierarchicalData || [];
+  const hasHierarchicalData = hierarchicalData.length > 0;
+  
+  let directions, currentDirection, parts, currentPart, methods, currentMethod, attackTools;
+  
+  if (hasHierarchicalData) {
+    // New hierarchical format
+    directions = hierarchicalData.map(d => d.direction);
+    currentDirection = hierarchicalData[selectedDirIndex] || { direction: '', parts: [] };
+    parts = currentDirection.parts || [];
+    currentPart = parts[selectedPartIndex] || { part: '', methods: [] };
+    methods = currentPart.methods || [];
+    currentMethod = methods[selectedMethodIndex] || { method: '', tools: [] };
+    attackTools = currentMethod.tools || [];
+  } else {
+    // Legacy format fallback
+    directions = selected?.directions || [];
+    parts = selected?.parts || [];
+    currentPart = parts[selectedPartIndex] || { part: '', methods: [] };
+    methods = currentPart.methods || [];
+    currentMethod = methods[selectedMethodIndex] || { method: '', tools: [] };
+    attackTools = currentMethod.tools || [];
+  }
 
-  const handleToolSelect = (i) => { setSelectedToolIndex(i); setSelectedPartIndex(0); setSelectedMethodIndex(0); setSelectedDirIndex(0); setSelectedAttackToolIndex(0); setToolDropdownOpen(false); };
-  const handlePartSelect = (i) => { setSelectedPartIndex(i); setSelectedMethodIndex(0); setSelectedAttackToolIndex(0); setPartDropdownOpen(false); };
-  const handleMethodSelect = (i) => { setSelectedMethodIndex(i); setSelectedAttackToolIndex(0); setMethodDropdownOpen(false); };
+  const handleToolSelect = (i) => { 
+    setSelectedToolIndex(i); 
+    setSelectedDirIndex(0); 
+    setSelectedPartIndex(0); 
+    setSelectedMethodIndex(0); 
+    setSelectedAttackToolIndex(0); 
+    setToolDropdownOpen(false); 
+  };
+  
+  const handleDirSelect = (i) => { 
+    setSelectedDirIndex(i); 
+    setSelectedPartIndex(0); 
+    setSelectedMethodIndex(0); 
+    setSelectedAttackToolIndex(0); 
+    setDirDropdownOpen(false); 
+  };
+  
+  const handlePartSelect = (i) => { 
+    setSelectedPartIndex(i); 
+    setSelectedMethodIndex(0); 
+    setSelectedAttackToolIndex(0); 
+    setPartDropdownOpen(false); 
+  };
+  
+  const handleMethodSelect = (i) => { 
+    setSelectedMethodIndex(i); 
+    setSelectedAttackToolIndex(0); 
+    setMethodDropdownOpen(false); 
+  };
 
   const rows = selected ? [
-    { label: 'Blocking Tool',    value: selected.name,                       tappable: items.length > 1,      onPress: () => setToolDropdownOpen(true) },
-    { label: 'Direction',        value: directions[selectedDirIndex] || '—', tappable: directions.length > 1, onPress: () => setDirDropdownOpen(true) },
-    { label: 'Part Blocked',     value: currentPart.part || '—',             tappable: parts.length > 1,      onPress: () => setPartDropdownOpen(true) },
-    { label: 'Attacking Method', value: currentMethod.method || '—',         tappable: methods.length > 1,    onPress: () => setMethodDropdownOpen(true) },
-    { label: 'Attacking Tool',   value: attackTools[selectedAttackToolIndex] || '—', tappable: attackTools.length > 1, onPress: () => setAttackToolDropdownOpen(true) },
+    { label: 'Blocking Tool',    value: selected.name,                                    tappable: items.length > 1,      onPress: () => setToolDropdownOpen(true) },
+    { label: 'Direction',        value: directions[selectedDirIndex] || '—',             tappable: directions.length > 1, onPress: () => setDirDropdownOpen(true) },
+    { label: 'Part Blocked',     value: currentPart.part || '—',                         tappable: parts.length > 1,      onPress: () => setPartDropdownOpen(true) },
+    { label: 'Attacking Method', value: currentMethod.method || '—',                     tappable: methods.length > 1,    onPress: () => setMethodDropdownOpen(true) },
+    { label: 'Attacking Tool',   value: attackTools[selectedAttackToolIndex] || '—',     tappable: attackTools.length > 1, onPress: () => setAttackToolDropdownOpen(true) },
   ] : [];
 
   const dropdowns = [
     { open: toolDropdownOpen,       items: items.map(t => t.name),  selected: selectedToolIndex,       onSelect: handleToolSelect,   onClose: () => setToolDropdownOpen(false) },
-    { open: dirDropdownOpen,        items: directions,               selected: selectedDirIndex,        onSelect: (i) => { setSelectedDirIndex(i); setDirDropdownOpen(false); }, onClose: () => setDirDropdownOpen(false) },
+    { open: dirDropdownOpen,        items: directions,               selected: selectedDirIndex,        onSelect: handleDirSelect,    onClose: () => setDirDropdownOpen(false) },
     { open: partDropdownOpen,       items: parts.map(p => p.part),  selected: selectedPartIndex,       onSelect: handlePartSelect,   onClose: () => setPartDropdownOpen(false) },
     { open: methodDropdownOpen,     items: methods.map(m => m.method), selected: selectedMethodIndex,  onSelect: handleMethodSelect, onClose: () => setMethodDropdownOpen(false) },
     { open: attackToolDropdownOpen, items: attackTools,              selected: selectedAttackToolIndex, onSelect: (i) => { setSelectedAttackToolIndex(i); setAttackToolDropdownOpen(false); }, onClose: () => setAttackToolDropdownOpen(false) },
