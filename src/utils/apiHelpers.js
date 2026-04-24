@@ -19,6 +19,15 @@ export const handleApiError = (error, context = 'API Request') => {
     };
   }
   
+  if (error.message.includes('503')) {
+    return {
+      type: 'SERVICE_UNAVAILABLE',
+      message: 'Server is temporarily unavailable. Retrying...',
+      shouldRetry: true,
+      backoffMultiplier: 2 // Use exponential backoff for 503
+    };
+  }
+  
   if (error.message.includes('timeout') || error.message.includes('Network Error')) {
     return {
       type: 'NETWORK_ERROR',
@@ -35,7 +44,7 @@ export const handleApiError = (error, context = 'API Request') => {
     };
   }
   
-  if (error.message.includes('500')) {
+  if (error.message.includes('500') || error.message.includes('502')) {
     return {
       type: 'SERVER_ERROR',
       message: 'Server error occurred. Please try again later.',
@@ -52,10 +61,10 @@ export const handleApiError = (error, context = 'API Request') => {
 };
 
 /**
- * Retry wrapper for API calls
+ * Retry wrapper for API calls with exponential backoff
  * @param {Function} apiCall - The API call function
  * @param {number} maxRetries - Maximum number of retries
- * @param {number} delay - Delay between retries in milliseconds
+ * @param {number} delay - Initial delay between retries in milliseconds
  * @returns {Promise} - API call result
  */
 export const withRetry = async (apiCall, maxRetries = 3, delay = 1000) => {
@@ -71,18 +80,26 @@ export const withRetry = async (apiCall, maxRetries = 3, delay = 1000) => {
       lastError = error;
       console.log(`❌ API attempt ${attempt} failed:`, error.message);
       
-      // Don't retry for authentication errors
-      if (error.message.includes('Authentication failed') || error.message.includes('401')) {
+      const errorInfo = handleApiError(error, 'Retry Handler');
+      
+      // Don't retry if error shouldn't be retried
+      if (!errorInfo.shouldRetry) {
+        console.log(`⛔ Error type ${errorInfo.type} should not be retried`);
         throw error;
       }
       
       // Don't retry on last attempt
       if (attempt === maxRetries) {
+        console.log(`⛔ Max retries (${maxRetries}) reached`);
         break;
       }
       
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+      // Calculate backoff delay
+      const backoffMultiplier = errorInfo.backoffMultiplier || 1;
+      const waitTime = delay * attempt * backoffMultiplier;
+      
+      console.log(`⏳ Waiting ${waitTime}ms before retry (backoff: ${backoffMultiplier}x)`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
   

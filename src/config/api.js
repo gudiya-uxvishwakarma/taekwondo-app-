@@ -1,9 +1,9 @@
 // API Configuration
 const API_CONFIG = {
-  BASE_URL: 'http://192.168.1.22:9000/api',
+  BASE_URL: 'https://cwtakarnataka.com/api',
   TIMEOUT: 50000,
   FALLBACK_URLS: [
-    'http://192.168.1.22:9000/api',
+    'https://cwtakarnataka.com/api',
   ],
   ENDPOINTS: {
     AUTH: {

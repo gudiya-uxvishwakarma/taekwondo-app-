@@ -90,7 +90,7 @@ export const testAllConnections = async () => {
 
   // Test Android emulator IP
   try {
-    const response = await fetch('http://192.168.1.22:9000/api/simple-test', {
+    const response = await fetch('https://cwtakarnataka.com/api/simple-test', {
       timeout: 3000,
     });
     results.emulatorIP = response.ok;
@@ -100,7 +100,7 @@ export const testAllConnections = async () => {
 
   // Test localhost
   try {
-    const response = await fetch('http://192.168.1.22:9000/api/simple-test', {
+    const response = await fetch('https://cwtakarnataka.com/api/simple-test', {
       timeout: 3000,
     });
     results.localhost = response.ok;

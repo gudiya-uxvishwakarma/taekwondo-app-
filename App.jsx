@@ -57,7 +57,21 @@ const AppContent = ({ onRegisterGoToSelection }) => {
 
   useEffect(() => {
     checkOnboardingStatus();
+    checkSavedAccountType(); // Check if user has a saved account type
   }, []);
+
+  const checkSavedAccountType = async () => {
+    try {
+      const savedType = await AsyncStorage.getItem('accountType');
+      if (savedType) {
+        console.log('Found saved account type:', savedType);
+        setSelectedType(savedType);
+        setShowSelection(false);
+      }
+    } catch (error) {
+      console.log('Error checking saved account type:', error);
+    }
+  };
 
   const checkOnboardingStatus = async () => {
     try {
@@ -89,15 +103,31 @@ const AppContent = ({ onRegisterGoToSelection }) => {
     }
   };
 
-  const handleSelection = (type) => {
+  const handleSelection = async (type) => {
     console.log('Selected type:', type);
     setSelectedType(type);
     setShowSelection(false);
+    
+    // Save account type selection
+    try {
+      await AsyncStorage.setItem('accountType', type);
+      console.log('Saved account type:', type);
+    } catch (error) {
+      console.log('Error saving account type:', error);
+    }
   };
 
-  const handleBackToSelection = () => {
+  const handleBackToSelection = async () => {
     setSelectedType(null);
     setShowSelection(true);
+    
+    // Clear saved account type when going back to selection
+    try {
+      await AsyncStorage.removeItem('accountType');
+      console.log('Cleared account type');
+    } catch (error) {
+      console.log('Error clearing account type:', error);
+    }
   };
 
   useEffect(() => {
@@ -126,12 +156,15 @@ const AppContent = ({ onRegisterGoToSelection }) => {
     setShowSelection(true);
   };
 
-  const handlePracticalLogout = () => {
+  const handlePracticalLogout = async () => {
     // Logout from practical syllabus - go to login page
     logout();
     setSelectedType('practical');
     setShowOnboarding(false);
     setShowSelection(false);
+    
+    // Keep the account type saved so they stay in practical mode
+    // Don't remove it - they're just logging out, not switching accounts
   };
 
   const handleSelectBelt = (belt) => {
