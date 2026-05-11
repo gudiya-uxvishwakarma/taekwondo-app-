@@ -23,7 +23,7 @@ const QuickWorkoutTrainingScreen = ({ program, customization, onBack, onBackToDa
   const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
 
   const getImageSource = (img) => {
-    if (!img) return { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop' };
+    if (!img) return null;
     return { uri: img.startsWith('http') ? img : `${serverBase}/${img}` };
   };
 
@@ -57,10 +57,13 @@ const QuickWorkoutTrainingScreen = ({ program, customization, onBack, onBackToDa
 
         // Filter by level and equipment
         const filtered = all.filter(ex => {
-          const levelMatch = !ex.level || ex.level === '' || ex.level === selectedLevel;
+          const lvl = ex.level;
+          const levelMatch = !lvl || lvl.length === 0 ||
+            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
           const eq = ex.equipment || 'all';
+          // With Chair → show chair + noChair (all); No Chair → show only noChair
           const eqMatch = selectedEquipment === 'With Chair'
-            ? eq === 'chair' || eq === 'all'
+            ? true
             : eq === 'noChair' || eq === 'all';
           return levelMatch && eqMatch;
         });
@@ -109,16 +112,19 @@ const QuickWorkoutTrainingScreen = ({ program, customization, onBack, onBackToDa
       activeOpacity={0.7}
       onPress={() => setSelectedExercise(exercise)}
     >
-      <ImageBackground
-        source={exercise.image}
-        style={styles.exerciseImage}
-        imageStyle={styles.exerciseImageStyle}
-      >
-        <View style={styles.exerciseImageOverlay} />
-      </ImageBackground>
+      {exercise.image ? (
+        <ImageBackground
+          source={exercise.image}
+          style={styles.exerciseImage}
+          imageStyle={styles.exerciseImageStyle}
+        >
+          <View style={styles.exerciseImageOverlay} />
+        </ImageBackground>
+      ) : (
+        <View style={[styles.exerciseImage, { backgroundColor: '#e5e7eb', borderRadius: 12 }]} />
+      )}
       <View style={styles.exerciseContent}>
         <Text style={styles.exerciseName}>{exercise.name}</Text>
-        <Text style={styles.exerciseLevel}>{customization?.level || 'Easy'}</Text>
       </View>
       <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
     </TouchableOpacity>

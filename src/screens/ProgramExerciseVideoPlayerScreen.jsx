@@ -67,10 +67,13 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
         const json = await res.json();
         const list = json?.data?.exercises || [];
         const filtered = list.filter(ex => {
-          const levelMatch = !ex.level || ex.level === '' || ex.level === selectedLevel;
+          const lvl = ex.level;
+          const levelMatch = !lvl || lvl.length === 0 ||
+            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
           const eq = ex.equipment || 'all';
+          // With Chair → show chair + noChair (all); No Chair → show only noChair
           const eqMatch = selectedEquipment === 'With Chair'
-            ? eq === 'chair' || eq === 'all'
+            ? true
             : eq === 'noChair' || eq === 'all';
           return levelMatch && eqMatch && ex.videoUrl;
         });

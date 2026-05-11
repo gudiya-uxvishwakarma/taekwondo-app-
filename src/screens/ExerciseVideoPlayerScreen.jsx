@@ -52,11 +52,17 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
         const json = await res.json();
         const list = json?.data?.exercises || [];
         const filtered = list.filter(ex => {
-          const beltMatch = !beltName || !ex.beltName || ex.beltName === beltName;
-          const levelMatch = !ex.level || ex.level === '' || ex.level === selectedLevel;
+          // Support both old beltName string and new beltNames array
+          const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
+          const beltMatch = !beltName || exBelts.length === 0 || exBelts.includes(beltName);
+          // Support both old string level and new array level
+          const lvl = ex.level;
+          const levelMatch = !lvl || lvl.length === 0 ||
+            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
           const eqVal = ex.equipment || 'all';
+          // With Chair → show chair + noChair (all); No Chair → show only noChair
           const eqMatch = selectedEquipment === 'With Chair'
-            ? eqVal === 'chair' || eqVal === 'all'
+            ? true
             : eqVal === 'noChair' || eqVal === 'all';
           return beltMatch && levelMatch && eqMatch && ex.videoUrl;
         });
@@ -77,7 +83,7 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
             : null,
           image: ex.image
             ? { uri: ex.image.startsWith('http') ? ex.image : `${serverBase}/${ex.image}` }
-            : { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop' },
+            : null,
         }));
         setExercises(mapped);
       } catch (_) {}
@@ -405,10 +411,16 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
         {exercises.map((ex, idx) => (
           <TouchableOpacity key={ex.id || idx} onPress={() => goTo(idx)}
             style={[styles.thumb, currentIndex === idx && styles.thumbActive]} activeOpacity={0.7}>
-            <ImageBackground source={ex.image} style={styles.thumbImg} imageStyle={{ borderRadius: 8 }}>
-              <View style={[styles.thumbOverlay, currentIndex === idx && styles.thumbOverlayActive]} />
-              <Icon name="play-circle-outline" size={22} color="#fff" type="MaterialIcons" />
-            </ImageBackground>
+            {ex.image ? (
+              <ImageBackground source={ex.image} style={styles.thumbImg} imageStyle={{ borderRadius: 8 }}>
+                <View style={[styles.thumbOverlay, currentIndex === idx && styles.thumbOverlayActive]} />
+                <Icon name="play-circle-outline" size={22} color="#fff" type="MaterialIcons" />
+              </ImageBackground>
+            ) : (
+              <View style={[styles.thumbImg, styles.thumbImgPlaceholder, { borderRadius: 8, justifyContent: 'center', alignItems: 'center' }]}>
+                <Icon name="play-circle-outline" size={22} color="#9ca3af" type="MaterialIcons" />
+              </View>
+            )}
             <Text style={[styles.thumbLabel, currentIndex === idx && styles.thumbLabelActive]} numberOfLines={2}>
               {ex.name}
             </Text>
@@ -513,6 +525,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
+  thumbImgPlaceholder: { backgroundColor: '#1f2937' },
   thumbOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 8 },
   thumbOverlayActive: { borderColor: '#006CB5' },
   thumbLabel: { color: '#9ca3af', fontSize: 10, textAlign: 'center', marginTop: 4, width: 90 },

@@ -47,7 +47,10 @@ const BeltDetailScreen = ({ belt, onBack }) => {
         const beltName = belt?.belt || belt?.title || '';
         const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
 
-        const filtered = list.filter(ex => !ex.beltName || ex.beltName === beltName);
+        const filtered = list.filter(ex => {
+          const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
+          return exBelts.length === 0 || exBelts.includes(beltName);
+        });
         
         // Sort filtered exercises by creation date (newest first)
         const sortedFiltered = filtered.sort((a, b) => {
@@ -72,7 +75,7 @@ const BeltDetailScreen = ({ belt, onBack }) => {
             : null,
           image: ex.image
             ? { uri: ex.image.startsWith('http') ? ex.image : `${serverBase}/${ex.image}` }
-            : { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop' },
+            : null,
         }));
         setBeltExerciseList(mapped);
 

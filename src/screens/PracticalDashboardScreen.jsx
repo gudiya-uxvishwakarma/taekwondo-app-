@@ -97,7 +97,10 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
 
       const mapped = await Promise.all(apiData.map(async (b, i) => {
         const beltName = b.beltName;
-        const total = allExercises.filter(ex => !ex.beltName || ex.beltName === beltName).length;
+        const total = allExercises.filter(ex => {
+          const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
+          return exBelts.length === 0 || exBelts.includes(beltName);
+        }).length;
         const saved = await AsyncStorage.getItem(`belt_progress_${beltName}`);
         const completed = saved ? parseInt(saved, 10) || 0 : 0;
         const progress = total > 0 ? completed / total : 0;

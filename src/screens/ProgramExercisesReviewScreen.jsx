@@ -37,10 +37,13 @@ const ProgramExercisesReviewScreen = ({ onBack, customization, onSelectExercise,
 
           // Filter by level and equipment
           const filtered = all.filter(ex => {
-            const levelMatch = !ex.level || ex.level === '' || ex.level === selectedLevel;
+            const lvl = ex.level;
+            const levelMatch = !lvl || lvl.length === 0 ||
+              (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
             const eq = ex.equipment || 'all';
+            // With Chair → show chair + noChair (all); No Chair → show only noChair
             const eqMatch = selectedEquipment === 'With Chair'
-              ? eq === 'chair' || eq === 'all'
+              ? true
               : eq === 'noChair' || eq === 'all';
             return levelMatch && eqMatch;
           });
@@ -129,7 +132,6 @@ const ProgramExercisesReviewScreen = ({ onBack, customization, onSelectExercise,
                     )}
                     <View style={styles.exerciseInfo}>
                       <Text style={styles.exerciseName}>{exercise.name}</Text>
-                      <Text style={styles.exerciseLevel}>{exercise.level || selectedLevel}</Text>
                     </View>
                     <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
                   </TouchableOpacity>

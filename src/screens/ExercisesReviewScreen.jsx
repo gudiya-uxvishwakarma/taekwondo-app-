@@ -28,14 +28,18 @@ const ExercisesReviewScreen = ({ onBack, customization, beltName, onSelectExerci
 
         // Filter by belt, level and equipment
         const filtered = list.filter(ex => {
-          const beltMatch = !beltName || !ex.beltName || ex.beltName === beltName;
-          // If exercise has no level set, show it for all levels
-          const levelMatch = !ex.level || ex.level === '' || ex.level === selectedLevel;
+          // Support both old beltName string and new beltNames array
+          const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
+          const beltMatch = !beltName || exBelts.length === 0 || exBelts.includes(beltName);
+          // Support both old string level and new array level
+          const lvl = ex.level;
+          const levelMatch = !lvl || lvl.length === 0 ||
+            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
           const eqVal = ex.equipment || 'all';
-          const eqMatch =
-            selectedEquipment === 'With Chair'
-              ? eqVal === 'chair' || eqVal === 'all'
-              : eqVal === 'noChair' || eqVal === 'all';
+          // With Chair → show chair + noChair (all); No Chair → show only noChair
+          const eqMatch = selectedEquipment === 'With Chair'
+            ? true
+            : eqVal === 'noChair' || eqVal === 'all';
           return beltMatch && levelMatch && eqMatch;
         });
 
@@ -58,7 +62,7 @@ const ExercisesReviewScreen = ({ onBack, customization, beltName, onSelectExerci
               videoUrl: ex.videoUrl || null,
               image: ex.image
                 ? { uri: ex.image.startsWith('http') ? ex.image : `${serverBase}/${ex.image}` }
-                : { uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop' },
+                : null,
             });
           }
         });
@@ -116,16 +120,19 @@ const ExercisesReviewScreen = ({ onBack, customization, beltName, onSelectExerci
                     activeOpacity={0.7}
                     onPress={() => onSelectExercise(exercise)}
                   >
-                    <ImageBackground
-                      source={exercise.image}
-                      style={styles.exerciseImage}
-                      imageStyle={styles.exerciseImageStyle}
-                    >
-                      <View style={styles.exerciseImageOverlay} />
-                    </ImageBackground>
+                    {exercise.image ? (
+                      <ImageBackground
+                        source={exercise.image}
+                        style={styles.exerciseImage}
+                        imageStyle={styles.exerciseImageStyle}
+                      >
+                        <View style={styles.exerciseImageOverlay} />
+                      </ImageBackground>
+                    ) : (
+                      <View style={[styles.exerciseImage, styles.exerciseImagePlaceholder]} />
+                    )}
                     <View style={styles.exerciseInfo}>
                       <Text style={styles.exerciseName}>{exercise.name}</Text>
-                      <Text style={styles.exerciseLevel}>{exercise.level}</Text>
                     </View>
                     <Icon name="chevron-right" size={24} color="#9ca3af" type="MaterialIcons" />
                   </TouchableOpacity>
@@ -166,6 +173,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   exerciseImage: { width: 65, height: 65, borderRadius: 12, overflow: 'hidden', marginRight: spacing.md },
+  exerciseImagePlaceholder: { backgroundColor: '#e5e7eb' },
   exerciseImageStyle: { borderRadius: 12 },
   exerciseImageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.1)' },
   exerciseInfo: { flex: 1 },
