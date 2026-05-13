@@ -71,7 +71,7 @@ const ProgramExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, cu
           const levelMatch = !lvl || lvl.length === 0 ||
             (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
           const eq = ex.equipment || 'all';
-          // With Chair → show chair + noChair (all); No Chair → show only noChair
+          // With Chair → show all; No Chair → only noChair
           const eqMatch = selectedEquipment === 'With Chair'
             ? true
             : eq === 'noChair' || eq === 'all';

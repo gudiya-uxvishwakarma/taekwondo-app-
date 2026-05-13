@@ -27,8 +27,10 @@ import SparringScreen from './theory/SparringScreen';
 import SparringListScreen from './theory/SparringListScreen';
 import TechniqueScreen from './theory/TechniqueScreen';
 import KoreanScreen from './theory/KoreanScreen';
+import LearnerProfileScreen from './LearnerProfileScreen';
 
-const TheorySyllabusScreen = ({ onBack }) => {
+const TheorySyllabusScreen = ({ onBack, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'profile'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showBasicTheory, setShowBasicTheory] = useState(false);
   const [showStances, setShowStances] = useState(false);
@@ -377,28 +379,77 @@ const TheorySyllabusScreen = ({ onBack }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Theory Syllabus</Text>
-        <View style={styles.headerSpacer} />
+      {/* Tab Content */}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'profile' ? (
+          <LearnerProfileScreen
+            onBack={() => setActiveTab('home')}
+            onLogout={onLogout || onBack}
+            onSwitch={onBack}
+            canEdit={false}
+          />
+        ) : (
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={onBack}
+                activeOpacity={0.7}
+              >
+                <Icon name="arrow-back" size={24} color="#fff" type="MaterialIcons" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Theory Syllabus</Text>
+              <View style={styles.headerSpacer} />
+            </View>
+
+            {/* Categories List */}
+            <FlatList
+              data={categories}
+              renderItem={renderCategoryItem}
+              keyExtractor={(item) => item.id.toString()}
+              scrollEnabled={true}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
+          </>
+        )}
       </View>
 
-      {/* Categories List */}
-      <FlatList
-        data={categories}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item.id.toString()}
-        scrollEnabled={true}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => setActiveTab('home')}
+        >
+          <Icon
+            name="menu-book"
+            size={26}
+            color={activeTab === 'home' ? colors.primary : '#9ca3af'}
+            type="MaterialIcons"
+          />
+          <Text style={[styles.navLabel, activeTab === 'home' && { color: colors.primary }]}>
+            Theory
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => setActiveTab('profile')}
+        >
+          <Icon
+            name="person"
+            size={26}
+            color={activeTab === 'profile' ? colors.primary : '#9ca3af'}
+            type="MaterialIcons"
+          />
+          <Text style={[styles.navLabel, activeTab === 'profile' && { color: colors.primary }]}>
+            Profile
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -547,6 +598,31 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
     flex: 1,
     lineHeight: 20,
+  },
+  bottomNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingBottom: 8,
+    paddingTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  navLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginTop: 3,
   },
 });
 

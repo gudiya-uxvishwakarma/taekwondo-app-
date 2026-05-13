@@ -65,6 +65,13 @@ const ProgramDetailScreen = ({ program, onBack }) => {
           const all = json.data.exercises || [];
           const grouped = { warmUp: [], training: [], stretching: [] };
           all.forEach(ex => {
+            // Extra client-side filter: support both legacy programId and new programIds array
+            if (programId) {
+              const exProgramIds = Array.isArray(ex.programIds) && ex.programIds.length
+                ? ex.programIds.map(id => String(id))
+                : (ex.programId ? [String(ex.programId)] : []);
+              if (exProgramIds.length > 0 && !exProgramIds.includes(String(programId))) return;
+            }
             const section = ex.section;
             if (grouped[section]) {
               grouped[section].push({
@@ -100,13 +107,17 @@ const ProgramDetailScreen = ({ program, onBack }) => {
   const filterExercisesByEquipment = (list, equipment) =>
     list.filter(ex => {
       const eq = ex.equipment || 'all';
-      if (equipment === 'With Chair') return eq === 'chair' || eq === 'all';
-      if (equipment === 'No Chair') return eq === 'noChair' || eq === 'all';
-      return true;
+      // With Chair → show all; No Chair → only noChair
+      if (equipment === 'With Chair') return true;
+      return eq === 'noChair' || eq === 'all';
     });
 
   const filterExercisesByLevel = (list, level) =>
-    list.filter(ex => !ex.level || ex.level === '' || ex.level === level);
+    list.filter(ex => {
+      const lvl = ex.level;
+      if (!lvl || lvl.length === 0) return true;
+      return Array.isArray(lvl) ? lvl.includes(level) : lvl === level;
+    });
 
   const getFilteredExercises = (section) => {
     const base = apiExercises[section] || [];

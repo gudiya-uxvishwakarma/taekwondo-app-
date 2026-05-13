@@ -674,8 +674,6 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
   },
-    height: 120,
-    borderRadius: 60,
   cameraButton: {
     position: 'absolute',
     bottom: 0,

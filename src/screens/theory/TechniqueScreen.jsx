@@ -109,8 +109,36 @@ const TechniqueDetailScreen = ({ item, onBack }) => (
         <Text style={styles.detailDescription}>{item.description}</Text>
       )}
 
-      {/* Headings */}
-      {(item.headings || []).length > 0 && (
+      {/* Sections (new structure from admin panel) */}
+      {(item.sections || []).length > 0 && (
+        <View>
+          {item.sections.map((section, si) => (
+            <View key={si} style={styles.sectionBlock}>
+              {!!section.heading && (
+                <Text style={styles.sectionHeading}>{section.heading}</Text>
+              )}
+              {(section.points || []).map((pt, pi) => (
+                <View key={pi}>
+                  <Text style={styles.point}>• {pt.text}</Text>
+                  {(pt.subPoints || []).map((sp, spi) => (
+                    <View key={spi}>
+                      <Text style={styles.subPoint}>◦ {typeof sp === 'string' ? sp : sp.text}</Text>
+                      {(sp.subPoints || []).map((ssp, sspi) => (
+                        <Text key={sspi} style={styles.subSubPoint}>
+                          ▸ {typeof ssp === 'string' ? ssp : ssp.text}
+                        </Text>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Legacy headings */}
+      {(item.sections || []).length === 0 && (item.headings || []).length > 0 && (
         <View style={styles.headingBlock}>
           {item.headings.map((h, i) => (
             <Text key={i} style={styles.headingText}>{h}</Text>
@@ -118,15 +146,15 @@ const TechniqueDetailScreen = ({ item, onBack }) => (
         </View>
       )}
 
-      {/* Points */}
-      {(item.points || []).map((pt, pi) => (
+      {/* Legacy points */}
+      {(item.sections || []).length === 0 && (item.points || []).map((pt, pi) => (
         <View key={pi}>
           <Text style={styles.point}>• {pt.text}</Text>
           {(pt.subPoints || []).map((sp, si) => (
             <View key={si}>
-              <Text style={styles.subPoint}>◦ {sp.text}</Text>
+              <Text style={styles.subPoint}>◦ {typeof sp === 'string' ? sp : sp.text}</Text>
               {(sp.subPoints || []).map((ssp, ssi) => (
-                <Text key={ssi} style={styles.subSubPoint}>▸ {ssp.text}</Text>
+                <Text key={ssi} style={styles.subSubPoint}>▸ {typeof ssp === 'string' ? ssp : ssp.text}</Text>
               ))}
             </View>
           ))}
@@ -160,6 +188,8 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 60, fontSize: 14 },
 
   // Detail screen
+  sectionBlock: { marginBottom: 14 },
+  sectionHeading: { fontSize: 15, fontWeight: 'bold', color: '#006CB5', marginBottom: 6, marginTop: 10 },
   detailTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginBottom: 6 },
   detailSubtitle: { fontSize: 15, color: '#555', marginBottom: 8, fontStyle: 'italic' },
   detailDescription: { fontSize: 14, lineHeight: 22, color: '#333', marginBottom: 16 },

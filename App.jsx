@@ -13,6 +13,7 @@ import { StudentProvider, useStudent } from './src/context/StudentContext';
 import StudentLoginScreen from './src/screens/auth/StudentLoginScreen';
 import TheoryLoginScreen from './src/screens/auth/TheoryLoginScreen';
 import TheorySyllabusScreen from './src/screens/TheorySyllabusScreen';
+import TheoryPaymentScreen from './src/screens/TheoryPaymentScreen';
 import PracticalLoginScreen from './src/screens/auth/PracticalLoginScreen';
 import SelectionScreen from './src/screens/SelectionScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
@@ -54,6 +55,8 @@ const AppContent = ({ onRegisterGoToSelection }) => {
   const [showPracticalPayment, setShowPracticalPayment] = useState(false);
   const [practicalLoginAfterPayment, setPracticalLoginAfterPayment] = useState(false);
   const [selectedBelt, setSelectedBelt] = useState(null);
+  const [showTheoryPayment, setShowTheoryPayment] = useState(false);
+  const [theoryLoginAfterPayment, setTheoryLoginAfterPayment] = useState(false);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -156,6 +159,26 @@ const AppContent = ({ onRegisterGoToSelection }) => {
     setShowSelection(true);
   };
 
+  const handleTheoryPaymentRequired = () => {
+    setShowTheoryPayment(true);
+  };
+
+  const handleTheoryPaymentSuccess = () => {
+    setShowTheoryPayment(false);
+    setTheoryLoginAfterPayment(true);
+  };
+
+  const handleTheoryLoginSuccess = () => {
+    setTheoryLoginAfterPayment(false);
+    // isAuthenticated will be true, theory syllabus will show
+  };
+
+  const handleBackFromTheoryPayment = () => {
+    setShowTheoryPayment(false);
+    setSelectedType(null);
+    setShowSelection(true);
+  };
+
   const handlePracticalLogout = async () => {
     // Logout from practical syllabus - go to login page
     logout();
@@ -194,9 +217,28 @@ const AppContent = ({ onRegisterGoToSelection }) => {
     return <SelectionScreen onSelect={handleSelection} />;
   }
 
-  // Show Theory Syllabus Screen (no login needed)
-  if (selectedType === 'theory') {
-    return <TheorySyllabusScreen onBack={handleBackToSelection} />;
+  // Show Theory Payment Screen
+  if (showTheoryPayment) {
+    return (
+      <TheoryPaymentScreen
+        onBack={handleBackFromTheoryPayment}
+        onPaymentSuccess={handleTheoryPaymentSuccess}
+      />
+    );
+  }
+
+  // Show Theory Syllabus — requires login (registered students) or payment (others)
+  if (selectedType === 'theory' || theoryLoginAfterPayment) {
+    if (isAuthenticated) {
+      return <TheorySyllabusScreen onBack={handleBackToSelection} onLogout={() => { logout(); }} />;
+    }
+    return (
+      <TheoryLoginScreen
+        onBack={handleBackToSelection}
+        onLoginSuccess={handleTheoryLoginSuccess}
+        onPaymentRequired={handleTheoryPaymentRequired}
+      />
+    );
   }
 
   // Show Payment Screen for Practical Syllabus

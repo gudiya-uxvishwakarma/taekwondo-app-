@@ -37,11 +37,17 @@ const ProgramExercisesReviewScreen = ({ onBack, customization, onSelectExercise,
 
           // Filter by level and equipment
           const filtered = all.filter(ex => {
+            // Program filter — support both legacy programId and new programIds array
+            if (programId) {
+              const exProgramIds = Array.isArray(ex.programIds) && ex.programIds.length
+                ? ex.programIds.map(id => String(id))
+                : (ex.programId ? [String(ex.programId)] : []);
+              if (exProgramIds.length > 0 && !exProgramIds.includes(String(programId))) return false;
+            }
             const lvl = ex.level;
             const levelMatch = !lvl || lvl.length === 0 ||
               (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
             const eq = ex.equipment || 'all';
-            // With Chair → show chair + noChair (all); No Chair → show only noChair
             const eqMatch = selectedEquipment === 'With Chair'
               ? true
               : eq === 'noChair' || eq === 'all';

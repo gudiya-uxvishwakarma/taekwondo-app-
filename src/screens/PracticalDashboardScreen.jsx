@@ -263,7 +263,16 @@ const PracticalDashboardScreen = ({ onBack, onLogout, onSelectBelt }) => {
       apiPrograms.forEach(p => {
         const cat = p.category || 'General';
         if (!categoryMap[cat]) categoryMap[cat] = [];
-        const total = allExercises.filter(ex => ex.programId === p._id || ex.programTitle === p.title).length;
+        const total = allExercises.filter(ex => {
+          // Support both legacy programId/programTitle and new programIds/programTitles arrays
+          const exProgramIds = Array.isArray(ex.programIds) && ex.programIds.length
+            ? ex.programIds.map(id => String(id))
+            : (ex.programId ? [String(ex.programId)] : []);
+          const exProgramTitles = Array.isArray(ex.programTitles) && ex.programTitles.length
+            ? ex.programTitles
+            : (ex.programTitle ? [ex.programTitle] : []);
+          return exProgramIds.includes(String(p._id)) || exProgramTitles.includes(p.title);
+        }).length;
         categoryMap[cat].push({
           ...p,
           id: p._id,
