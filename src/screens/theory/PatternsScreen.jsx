@@ -31,6 +31,7 @@ const TAB_LABELS = {
 // ── Main screen ───────────────────────────────────────────────────────────────
 const PatternsScreen = ({ onBack }) => {
   const [patterns, setPatterns] = useState([]);
+  const [entries, setEntries] = useState({}); // { patternId: [entries] }
   const [slideData, setSlideData] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -57,7 +58,23 @@ const PatternsScreen = ({ onBack }) => {
       // Debug: Log the non-standard-list data
       console.log('📊 Non-standard List Data:', JSON.stringify(nsl.data, null, 2));
       
-      setPatterns((pd.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+      const patternsData = (pd.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      setPatterns(patternsData);
+      
+      // Fetch entries for each pattern
+      const entriesMap = {};
+      for (const pattern of patternsData) {
+        try {
+          const entriesRes = await fetch(`${API_CONFIG.BASE_URL}/patterns/${pattern._id}/entries`);
+          const entriesData = await entriesRes.json();
+          entriesMap[pattern._id] = (entriesData.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        } catch (err) {
+          console.log(`Failed to fetch entries for pattern ${pattern._id}:`, err);
+          entriesMap[pattern._id] = [];
+        }
+      }
+      setEntries(entriesMap);
+      
       setSlideData({
         'non-standard-desc':   (nsd.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
         'non-standard-list':   (nsl.data || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
@@ -78,7 +95,8 @@ const PatternsScreen = ({ onBack }) => {
     return <SlidePointDetailPage detail={selectedDetail} onBack={() => setSelectedDetail(null)} />;
   }
   if (selectedPattern) {
-    return <PatternDetailScreen pattern={selectedPattern} onBack={() => setSelectedPattern(null)} onSelectTechnique={setSelectedTechnique} />;
+    const patternEntries = entries[selectedPattern._id] || [];
+    return <PatternDetailScreen pattern={selectedPattern} entries={patternEntries} onBack={() => setSelectedPattern(null)} onSelectTechnique={setSelectedTechnique} />;
   }
 
   const goToTab = (index) => {
@@ -137,7 +155,10 @@ const PatternsScreen = ({ onBack }) => {
                       resizeMode="cover"
                       onError={(e) => console.log('Pattern image error:', `${BASE_URL}${item.image}`, e.nativeEvent.error)}
                     />}
-                    <Text style={styles.patternName}>{item.name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.patternName}>{item.name}</Text>
+                      <Text style={styles.patternId}>{item._id.slice(-6)}</Text>
+                    </View>
                   </View>
                   <Text style={styles.moves}>{item.moves} mov.</Text>
                 </TouchableOpacity>
@@ -266,41 +287,31 @@ const SlidePointDetailPage = ({ detail, onBack }) => {
         {isNonStandardList ? (
           /* Non-standard speeds list: show pattern name, number, korean term, english description */
           (() => {
-            // Use new patternEntries if available, fallback to old kickEntries for backward compatibility
             const entries = detail.patternEntries || detail.kickEntries || [];
             
             if (detail.patternEntries && detail.patternEntries.length > 0) {
-              // New structure: direct pattern entries
-              // Group entries by pattern name - show exactly what user entered
-              const groupedEntries = {};
+              // Group by groupId — each groupId = one box
+              const boxes = [];
+              const seen = {};
               detail.patternEntries.forEach(entry => {
-                // Use the exact patternName that was entered in admin panel, fallback to "Unknown Pattern"
-                const entryPatternName = entry.patternName && entry.patternName.trim() ? entry.patternName : 'Unknown Pattern';
-                if (!groupedEntries[entryPatternName]) {
-                  groupedEntries[entryPatternName] = [];
+                const key = entry.groupId || entry.patternName || 'Unknown Pattern';
+                if (seen[key] === undefined) {
+                  seen[key] = boxes.length;
+                  boxes.push({ patternName: entry.patternName || 'Unknown Pattern', entries: [] });
                 }
-                groupedEntries[entryPatternName].push(entry);
+                boxes[seen[key]].entries.push(entry);
               });
-              
-              return Object.keys(groupedEntries).map((pName, groupIndex) => (
+              return boxes.map((box, groupIndex) => (
                 <View key={groupIndex} style={groupIndex > 0 ? styles.patternGroup : { marginTop: 16 }}>
-                  {/* Pattern Name Header - Show exactly what user entered */}
-                  <Text style={styles.patternNameHeader}>{pName}</Text>
-                  
-                  {/* Entries for this pattern - Clean list without boxes */}
+                  <Text style={styles.patternNameHeader}>{box.patternName}</Text>
                   <View style={{ paddingHorizontal: 16 }}>
-                    {groupedEntries[pName].map((entry, entryIndex) => (
+                    {box.entries.map((entry, entryIndex) => (
                       <View key={entryIndex} style={styles.patternEntry}>
-                        {/* Simple layout: number, Korean term, description */}
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                           <Text style={styles.entryNumber}>{entry.number || (entryIndex + 1)}.</Text>
                           <View style={{ flex: 1, marginLeft: 8 }}>
-                            {!!entry.koreanTerm && (
-                              <Text style={styles.entryKorean}>{entry.koreanTerm}</Text>
-                            )}
-                            {!!entry.description && (
-                              <Text style={styles.entryDescription}>{entry.description}</Text>
-                            )}
+                            {!!entry.koreanTerm && <Text style={styles.entryKorean}>{entry.koreanTerm}</Text>}
+                            {!!entry.description && <Text style={styles.entryDescription}>{entry.description}</Text>}
                           </View>
                         </View>
                       </View>
@@ -309,40 +320,30 @@ const SlidePointDetailPage = ({ detail, onBack }) => {
                 </View>
               ));
             } else if (detail.kickEntries && detail.kickEntries.length > 0) {
-              // Old structure: kickEntries with rows
-              const groups = [];
+              // Group by groupId — each groupId = one box
+              const boxes = [];
+              const seen = {};
               detail.kickEntries.forEach(e => {
-                // Use the exact patternName that was entered in admin panel
-                const patternName = e.patternName && e.patternName.trim() ? e.patternName : 'Unknown Pattern';
-                const last = groups[groups.length - 1];
-                if (last && last.patternName === patternName) {
-                  last.entries.push(e);
-                } else {
-                  groups.push({ patternName: patternName, entries: [e] });
+                const key = e.groupId || e.patternName || 'Unknown Pattern';
+                if (seen[key] === undefined) {
+                  seen[key] = boxes.length;
+                  boxes.push({ patternName: e.patternName || 'Unknown Pattern', entries: [] });
                 }
+                boxes[seen[key]].entries.push(e);
               });
-              
-              return groups.map((g, gi) => (
+              return boxes.map((box, gi) => (
                 <View key={gi} style={gi > 0 ? styles.patternGroup : { marginTop: 16 }}>
-                  {/* Pattern Name Header - Show exactly what user entered */}
-                  <Text style={styles.patternNameHeader}>{g.patternName}</Text>
-                  
-                  {/* Entries for this pattern - Clean list without boxes */}
+                  <Text style={styles.patternNameHeader}>{box.patternName}</Text>
                   <View style={{ paddingHorizontal: 16 }}>
-                    {g.entries.map((e, ei) => (
+                    {box.entries.map((e, ei) => (
                       <View key={ei} style={styles.patternEntry}>
-                        {/* Simple layout: number, Korean term, description */}
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                           <Text style={styles.entryNumber}>{e.number || (ei + 1)}.</Text>
                           <View style={{ flex: 1, marginLeft: 8 }}>
                             {(e.rows || []).map((row, ri) => (
                               <View key={ri} style={ri > 0 ? { marginTop: 4 } : undefined}>
-                                {!!row.koreanTerm && (
-                                  <Text style={styles.entryKorean}>{row.koreanTerm}</Text>
-                                )}
-                                {!!row.description && (
-                                  <Text style={styles.entryDescription}>{row.description}</Text>
-                                )}
+                                {!!row.koreanTerm && <Text style={styles.entryKorean}>{row.koreanTerm}</Text>}
+                                {!!row.description && <Text style={styles.entryDescription}>{row.description}</Text>}
                               </View>
                             ))}
                           </View>
@@ -357,23 +358,23 @@ const SlidePointDetailPage = ({ detail, onBack }) => {
             }
           })()
         ) : isKick ? (
-          /* Kick entries: grouped by patternName */
+          /* Kick entries: grouped by groupId — each groupId = one box */
           (() => {
             const entries = detail.kickEntries || [];
-            // Group by patternName
-            const groups = [];
+            const boxes = [];
+            const seen = {};
             entries.forEach(e => {
-              const last = groups[groups.length - 1];
-              if (last && last.patternName === e.patternName) {
-                last.entries.push(e);
-              } else {
-                groups.push({ patternName: e.patternName, entries: [e] });
+              const key = e.groupId || e.patternName || 'Unknown Pattern';
+              if (seen[key] === undefined) {
+                seen[key] = boxes.length;
+                boxes.push({ patternName: e.patternName, entries: [] });
               }
+              boxes[seen[key]].entries.push(e);
             });
-            return groups.map((g, gi) => (
+            return boxes.map((box, gi) => (
               <View key={gi} style={gi > 0 ? styles.patternGroup : undefined}>
-                {!!g.patternName && <Text style={styles.patternNameHeader}>{g.patternName}</Text>}
-                {g.entries.map((e, ei) => (
+                {!!box.patternName && <Text style={styles.patternNameHeader}>{box.patternName}</Text>}
+                {box.entries.map((e, ei) => (
                   <View key={ei} style={styles.patternEntry}>
                     <View style={styles.entryNumberContainer}>
                       {!!e.number && <Text style={styles.entryNumber}>{e.number}</Text>}
@@ -431,11 +432,12 @@ const ListSlide = ({ data }) => (
     <View style={{ height: 40 }} />
   </ScrollView>
 );
-const PatternDetailScreen = ({ pattern, onBack, onSelectTechnique }) => {
+const PatternDetailScreen = ({ pattern, onBack, onSelectTechnique, entries = [] }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const pagerRef = useRef(null);
   const tabBarRef = useRef(null);
-  const availableTabs = TABS.filter(t => (pattern.items || []).some(i => i.tab === t));
+  const patternEntries = entries || [];
+  const availableTabs = TABS.filter(t => patternEntries.some(i => i.tab === t));
 
   const goToTab = (index) => {
     setActiveIndex(index);
@@ -477,7 +479,7 @@ const PatternDetailScreen = ({ pattern, onBack, onSelectTechnique }) => {
           <ScrollView ref={pagerRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={onPageScroll} scrollEventThrottle={16} style={{ flex: 1 }}>
             {availableTabs.map(tab => {
-              const tabItems = (pattern.items || []).filter(i => i.tab === tab);
+              const tabItems = patternEntries.filter(i => i.tab === tab);
               return (
                 <ScrollView key={tab} style={{ width: W }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.pageContent}>
                   {tabItems.map((item, idx) => <TabItem key={idx} item={item} tab={tab} onSelectTechnique={onSelectTechnique} />)}
@@ -587,6 +589,7 @@ const styles = StyleSheet.create({
   rowLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#f1f5f9' },
   patternName: { fontSize: 16, fontWeight: '700', color: '#1f2937' },
+  patternId: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   moves: { fontSize: 13, color: '#6b7280', width: 80, textAlign: 'right' },
   tabBarWrap: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   tabBarContent: { paddingHorizontal: 8 },
