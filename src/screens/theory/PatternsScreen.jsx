@@ -157,7 +157,6 @@ const PatternsScreen = ({ onBack }) => {
                     />}
                     <View style={{ flex: 1 }}>
                       <Text style={styles.patternName}>{item.name}</Text>
-                      <Text style={styles.patternId}>{item._id.slice(-6)}</Text>
                     </View>
                   </View>
                   <Text style={styles.moves}>{item.moves} mov.</Text>

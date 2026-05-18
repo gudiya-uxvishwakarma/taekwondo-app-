@@ -47,11 +47,15 @@ const TheoryQuestionsScreen = ({ onBack }) => {
         if (!res.ok) throw new Error('API error');
         const data = await res.json();
         if (data.status === 'success' && data.data?.length > 0) {
-          // Group by beltLevel
+          // Group by beltLevel — each question can belong to multiple belts
           const grouped = {};
           data.data.forEach(q => {
-            if (!grouped[q.beltLevel]) grouped[q.beltLevel] = [];
-            grouped[q.beltLevel].push({ q: q.question, options: q.options, answer: q.answer });
+            const belts = Array.isArray(q.beltLevel) ? q.beltLevel : [q.beltLevel];
+            belts.forEach(belt => {
+              if (!belt) return;
+              if (!grouped[belt]) grouped[belt] = [];
+              grouped[belt].push({ q: q.question, options: q.options, answer: q.answer });
+            });
           });
           setAllQuestions(grouped);
           setBelts(Object.keys(grouped));
