@@ -112,12 +112,17 @@ const ProgramDetailScreen = ({ program, onBack }) => {
       return eq === 'noChair' || eq === 'all';
     });
 
-  const filterExercisesByLevel = (list, level) =>
-    list.filter(ex => {
+  const filterExercisesByLevel = (list, level) => {
+    // Inclusive hierarchy: Easy → [Easy], Advance → [Easy, Advance], Master → [Easy, Advance, Master]
+    const LEVEL_HIERARCHY = ['Easy', 'Advance', 'Master'];
+    const selectedLevelIndex = LEVEL_HIERARCHY.indexOf(level);
+    const allowedLevels = LEVEL_HIERARCHY.slice(0, selectedLevelIndex + 1);
+    return list.filter(ex => {
       const lvl = ex.level;
-      if (!lvl || lvl.length === 0) return true;
-      return Array.isArray(lvl) ? lvl.includes(level) : lvl === level;
+      const exLevels = Array.isArray(lvl) ? lvl : (lvl ? [lvl] : []);
+      return exLevels.length === 0 || exLevels.some(l => allowedLevels.includes(l));
     });
+  };
 
   const getFilteredExercises = (section) => {
     const base = apiExercises[section] || [];

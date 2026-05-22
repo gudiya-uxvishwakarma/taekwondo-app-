@@ -5,7 +5,7 @@ buildscript {
         minSdkVersion = 24
         compileSdkVersion = 34
         targetSdkVersion = 35
-        ndkVersion = "26.1.10909125"
+        ndkVersion = "27.1.12297006"
         kotlinVersion = "1.8.22"
     }
     repositories {
@@ -29,7 +29,7 @@ allprojects {
     
     configurations.all {
         resolutionStrategy {
-            force "com.facebook.react:react-android:0.72.6"
+            force "com.facebook.react:react-android:0.72.15"
             force "androidx.activity:activity:1.8.0"
             force "androidx.activity:activity-ktx:1.8.0"
             
@@ -40,7 +40,7 @@ allprojects {
             
             // Map the old dependency to the new one
             dependencySubstitution {
-                substitute module('com.facebook.react:react-native') using module('com.facebook.react:react-android:0.72.6')
+                substitute module('com.facebook.react:react-native') using module('com.facebook.react:react-android:0.72.15')
                 // Map old support library to AndroidX
                 substitute module('com.android.support:appcompat-v7') using module('androidx.appcompat:appcompat:1.6.1')
                 substitute module('com.android.support:support-v4') using module('androidx.legacy:legacy-support-v4:1.0.0')

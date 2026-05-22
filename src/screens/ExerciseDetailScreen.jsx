@@ -96,17 +96,14 @@ const ExerciseDetailScreen = ({ exercise, onBack, customization, onVideoComplete
     onVideoCompleted && onVideoCompleted();
   };
 
-  // Cleanup orientation on component unmount
+  // Lock to portrait on mount, unlock only for fullscreen
   React.useEffect(() => {
+    if (Orientation) {
+      try { Orientation.lockToPortrait(); } catch (_) {}
+    }
     return () => {
       if (Orientation) {
-        try {
-          Orientation.unlockAllOrientations();
-          Orientation.lockToPortrait();
-          console.log('Orientation cleanup completed');
-        } catch (error) {
-          console.log('Orientation cleanup failed:', error);
-        }
+        try { Orientation.lockToPortrait(); } catch (_) {}
       }
     };
   }, []);
@@ -130,17 +127,11 @@ const ExerciseDetailScreen = ({ exercise, onBack, customization, onVideoComplete
     setFullscreen(false);
     setShowControls(true);
     if (!paused) scheduleHide();
-    // Unlock orientation when exiting fullscreen
     if (Orientation) {
       try {
-        console.log('Returning to portrait...');
-        Orientation.unlockAllOrientations();
-        // Return to portrait after a short delay
-        setTimeout(() => {
-          Orientation.lockToPortrait();
-        }, 100);
+        Orientation.lockToPortrait();
       } catch (error) {
-        console.log('Failed to unlock orientation:', error);
+        console.log('Failed to lock portrait:', error);
       }
     }
   };
@@ -292,7 +283,7 @@ const ExerciseDetailScreen = ({ exercise, onBack, customization, onVideoComplete
       <ScrollView style={styles.panel} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <Text style={styles.exerciseName}>{exercise?.name || 'Exercise'}</Text>
-          <Text style={styles.difficulty}>{customization?.level || exercise?.level || 'Easy'}</Text>
+          <Text style={styles.difficulty}>{Array.isArray(exercise?.level) ? exercise.level.join(', ') : (exercise?.level || 'Easy')}</Text>
         </View>
 
         <View style={styles.section}>

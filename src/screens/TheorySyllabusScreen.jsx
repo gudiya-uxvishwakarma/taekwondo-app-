@@ -91,7 +91,7 @@ const TheorySyllabusScreen = ({ onBack, onLogout }) => {
     },
     {
       id: 4,
-      title: 'Korean + Korean MATCH!',
+      title: 'Korean ',
       iconName: 'translate',
       iconColor: '#ef4444',
       bgColor: '#fef2f2',

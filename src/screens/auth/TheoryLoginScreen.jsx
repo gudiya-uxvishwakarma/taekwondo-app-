@@ -42,6 +42,7 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const logoScale = useRef(new Animated.Value(0.9)).current;
   const timerRef = useRef(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -182,8 +183,8 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
         <View style={styles.centerCircle} />
       </View>
 
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} bounces={false}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
 
           {/* Logo Section */}
           <Animated.View style={[styles.logoSection, { opacity: fadeAnim, transform: [{ scale: logoScale }, { translateY: slideAnim }] }]}>
@@ -233,6 +234,7 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
                       autoCapitalize="none"
                       autoCorrect={false}
                       keyboardType="email-address"
+                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
                     />
                   </View>
                 </View>
@@ -250,6 +252,7 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
                       placeholder="Enter password"
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showPassword}
+                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
                     />
                     <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
                       <Icon name={showPassword ? 'visibility' : 'visibility-off'} size={20} color="#9ca3af" />
@@ -296,6 +299,7 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
                       keyboardType="phone-pad"
                       maxLength={10}
                       editable={!otpSent}
+                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
                     />
                   </View>
                 </View>
@@ -336,6 +340,7 @@ const TheoryLoginScreen = ({ onBack, onLoginSuccess, onPaymentRequired }) => {
                         placeholderTextColor="#9ca3af"
                         keyboardType="number-pad"
                         maxLength={6}
+                        onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
                       />
                     </View>
                   </View>

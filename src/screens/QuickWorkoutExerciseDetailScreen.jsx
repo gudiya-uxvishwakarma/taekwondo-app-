@@ -66,7 +66,7 @@ const QuickWorkoutExerciseDetailScreen = ({ exercise, customization, onBack, onB
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Exercise Info */}
         <View style={styles.infoSection}>
-          <Text style={styles.difficulty}>{customization?.level || 'Easy'}</Text>
+          <Text style={styles.difficulty}>{Array.isArray(exercise?.level) ? exercise.level.join(', ') : (exercise?.level || 'Easy')}</Text>
           <Text style={styles.exerciseName}>{exercise?.name || 'Exercise'}</Text>
         </View>
 

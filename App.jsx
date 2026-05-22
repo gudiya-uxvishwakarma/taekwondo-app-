@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   StatusBar,
@@ -7,6 +6,7 @@ import {
   ActivityIndicator,
   Text,
   LogBox,
+  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StudentProvider, useStudent } from './src/context/StudentContext';
@@ -318,7 +318,7 @@ function App() {
   return (
     <ErrorBoundary>
       <StudentProvider onGoToSelection={goToSelectionFn}>
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           <StatusBar 
             barStyle="light-content" 
             backgroundColor={colors.primary} 
@@ -326,7 +326,7 @@ function App() {
             hidden={false}
           />
           <AppContent onRegisterGoToSelection={setGoToSelectionFn} />
-        </View>
+        </SafeAreaView>
       </StudentProvider>
     </ErrorBoundary>
   );
@@ -335,7 +335,7 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary, // matches status bar so top safe area blends
   },
   loadingContainer: {
     flex: 1,

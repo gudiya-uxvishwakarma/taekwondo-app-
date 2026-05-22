@@ -51,14 +51,21 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
         const res = await fetch(`${API_CONFIG.BASE_URL}/exercises`);
         const json = await res.json();
         const list = json?.data?.exercises || [];
+        // Determine which levels are visible based on selected level:
+        // Easy → [Easy], Advance → [Easy, Advance], Master → [Easy, Advance, Master]
+        const LEVEL_HIERARCHY = ['Easy', 'Advance', 'Master'];
+        const selectedLevelIndex = LEVEL_HIERARCHY.indexOf(selectedLevel);
+        const allowedLevels = LEVEL_HIERARCHY.slice(0, selectedLevelIndex + 1);
+
         const filtered = list.filter(ex => {
           // Support both old beltName string and new beltNames array
           const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
           const beltMatch = !beltName || exBelts.length === 0 || exBelts.includes(beltName);
-          // Support both old string level and new array level
+          // Inclusive level filter: show all levels up to and including the selected level
           const lvl = ex.level;
-          const levelMatch = !lvl || lvl.length === 0 ||
-            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
+          const exLevels = Array.isArray(lvl) ? lvl : (lvl ? [lvl] : []);
+          const levelMatch = exLevels.length === 0 ||
+            exLevels.some(l => allowedLevels.includes(l));
           const eqVal = ex.equipment || 'all';
           // With Chair → show chair + noChair (all); No Chair → show only noChair
           const eqMatch = selectedEquipment === 'With Chair'
@@ -92,17 +99,14 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
     fetch_();
   }, [beltName, selectedLevel, selectedEquipment]);
 
-  // Cleanup orientation on component unmount
+  // Lock to portrait on mount, unlock only for fullscreen
   React.useEffect(() => {
+    if (Orientation) {
+      try { Orientation.lockToPortrait(); } catch (_) {}
+    }
     return () => {
       if (Orientation) {
-        try {
-          Orientation.unlockAllOrientations();
-          Orientation.lockToPortrait();
-          console.log('Orientation cleanup completed');
-        } catch (error) {
-          console.log('Orientation cleanup failed:', error);
-        }
+        try { Orientation.lockToPortrait(); } catch (_) {}
       }
     };
   }, []);
@@ -192,21 +196,15 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
     }
   };
   
-  const onExitFullscreen = () => { 
-    setFullscreen(false); 
-    setShowControls(true); 
+  const onExitFullscreen = () => {
+    setFullscreen(false);
+    setShowControls(true);
     if (!paused) scheduleHide();
-    // Unlock orientation when exiting fullscreen
     if (Orientation) {
       try {
-        console.log('Returning to portrait...');
-        Orientation.unlockAllOrientations();
-        // Return to portrait after a short delay
-        setTimeout(() => {
-          Orientation.lockToPortrait();
-        }, 100);
+        Orientation.lockToPortrait();
       } catch (error) {
-        console.log('Failed to unlock orientation:', error);
+        console.log('Failed to lock portrait:', error);
       }
     }
   };
@@ -405,27 +403,37 @@ const ExerciseVideoPlayerScreen = ({ exercises: propExercises, onBack, customiza
         </TouchableOpacity>
       </View>
 
-      {/* ── THUMBNAIL LIST ── */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={styles.thumbList} contentContainerStyle={styles.thumbContent}>
+      {/* ── EXERCISE LIST ── */}
+      <ScrollView style={styles.thumbList} showsVerticalScrollIndicator={false}>
         {exercises.map((ex, idx) => (
-          <TouchableOpacity key={ex.id || idx} onPress={() => goTo(idx)}
-            style={[styles.thumb, currentIndex === idx && styles.thumbActive]} activeOpacity={0.7}>
+          <TouchableOpacity
+            key={ex.id || idx}
+            onPress={() => goTo(idx)}
+            style={[styles.thumb, currentIndex === idx && styles.thumbActive]}
+            activeOpacity={0.7}
+          >
             {ex.image ? (
-              <ImageBackground source={ex.image} style={styles.thumbImg} imageStyle={{ borderRadius: 8 }}>
+              <ImageBackground source={ex.image} style={styles.thumbImg} imageStyle={{ borderRadius: 10 }}>
                 <View style={[styles.thumbOverlay, currentIndex === idx && styles.thumbOverlayActive]} />
-                <Icon name="play-circle-outline" size={22} color="#fff" type="MaterialIcons" />
+                <Icon name="play-circle-outline" size={20} color="#fff" type="MaterialIcons" />
               </ImageBackground>
             ) : (
-              <View style={[styles.thumbImg, styles.thumbImgPlaceholder, { borderRadius: 8, justifyContent: 'center', alignItems: 'center' }]}>
-                <Icon name="play-circle-outline" size={22} color="#9ca3af" type="MaterialIcons" />
+              <View style={[styles.thumbImg, styles.thumbImgPlaceholder]}>
+                <Icon name="play-circle-outline" size={20} color="#9ca3af" type="MaterialIcons" />
               </View>
             )}
-            <Text style={[styles.thumbLabel, currentIndex === idx && styles.thumbLabelActive]} numberOfLines={2}>
+            <Text
+              style={[styles.thumbLabel, currentIndex === idx && styles.thumbLabelActive]}
+              numberOfLines={2}
+            >
               {ex.name}
             </Text>
+            {currentIndex === idx && (
+              <Icon name="play-arrow" size={18} color="#006CB5" type="MaterialIcons" />
+            )}
           </TouchableOpacity>
         ))}
+        <View style={{ height: 12 }} />
       </ScrollView>
     </View>
   );
@@ -516,20 +524,29 @@ const styles = StyleSheet.create({
   exerciseName: { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
   exerciseCount: { color: '#9ca3af', fontSize: 13 },
 
-  thumbList: { backgroundColor: '#000', maxHeight: 110 },
+  thumbList: { backgroundColor: '#fff', flex: 1 },
   thumbContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 10 },
-  thumb: { alignItems: 'center', width: 90, opacity: 0.6 },
-  thumbActive: { opacity: 1 },
+  thumb: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    backgroundColor: '#fff',
+  },
+  thumbActive: { backgroundColor: '#f0f7ff' },
   thumbImg: {
-    width: 90, height: 60, borderRadius: 8, overflow: 'hidden',
+    width: 72, height: 52, borderRadius: 10, overflow: 'hidden',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent',
+    flexShrink: 0,
   },
-  thumbImgPlaceholder: { backgroundColor: '#1f2937' },
-  thumbOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 8 },
+  thumbImgPlaceholder: { backgroundColor: '#e5e7eb' },
+  thumbOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10 },
   thumbOverlayActive: { borderColor: '#006CB5' },
-  thumbLabel: { color: '#9ca3af', fontSize: 10, textAlign: 'center', marginTop: 4, width: 90 },
-  thumbLabelActive: { color: '#fff' },
+  thumbLabel: {
+    flex: 1, color: '#6b7280', fontSize: 13, fontWeight: '600',
+    marginLeft: 12, lineHeight: 18,
+  },
+  thumbLabelActive: { color: '#1f2937', fontWeight: '700' },
   fsContainer: { flex: 1, backgroundColor: '#000', width: '100%', height: '100%' },
   fillFullscreen: {
     position: 'absolute',

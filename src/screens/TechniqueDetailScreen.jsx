@@ -141,32 +141,23 @@ export default function TechniqueDetailScreen({ technique, onBack, onVideoWatch 
     setFullscreen(false);
     setShowControls(true);
     if (!paused) scheduleHide();
-    // Unlock orientation when exiting fullscreen
     if (Orientation) {
       try {
-        console.log('Returning to portrait...');
-        Orientation.unlockAllOrientations();
-        // Return to portrait after a short delay
-        setTimeout(() => {
-          Orientation.lockToPortrait();
-        }, 100);
+        Orientation.lockToPortrait();
       } catch (error) {
-        console.log('Failed to unlock orientation:', error);
+        console.log('Failed to lock portrait:', error);
       }
     }
   };
 
-  // Cleanup orientation on component unmount
+  // Lock to portrait on mount, unlock only for fullscreen
   React.useEffect(() => {
+    if (Orientation) {
+      try { Orientation.lockToPortrait(); } catch (_) {}
+    }
     return () => {
       if (Orientation) {
-        try {
-          Orientation.unlockAllOrientations();
-          Orientation.lockToPortrait();
-          console.log('Orientation cleanup completed');
-        } catch (error) {
-          console.log('Orientation cleanup failed:', error);
-        }
+        try { Orientation.lockToPortrait(); } catch (_) {}
       }
     };
   }, []);

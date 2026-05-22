@@ -26,15 +26,22 @@ const ExercisesReviewScreen = ({ onBack, customization, beltName, onSelectExerci
         const json = await res.json();
         const list = json?.data?.exercises || [];
 
+        // Determine which levels are visible based on selected level:
+        // Easy → [Easy], Advance → [Easy, Advance], Master → [Easy, Advance, Master]
+        const LEVEL_HIERARCHY = ['Easy', 'Advance', 'Master'];
+        const selectedLevelIndex = LEVEL_HIERARCHY.indexOf(selectedLevel);
+        const allowedLevels = LEVEL_HIERARCHY.slice(0, selectedLevelIndex + 1);
+
         // Filter by belt, level and equipment
         const filtered = list.filter(ex => {
           // Support both old beltName string and new beltNames array
           const exBelts = Array.isArray(ex.beltNames) && ex.beltNames.length ? ex.beltNames : (ex.beltName ? [ex.beltName] : []);
           const beltMatch = !beltName || exBelts.length === 0 || exBelts.includes(beltName);
-          // Support both old string level and new array level
+          // Inclusive level filter: show all levels up to and including the selected level
           const lvl = ex.level;
-          const levelMatch = !lvl || lvl.length === 0 ||
-            (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
+          const exLevels = Array.isArray(lvl) ? lvl : (lvl ? [lvl] : []);
+          const levelMatch = exLevels.length === 0 ||
+            exLevels.some(l => allowedLevels.includes(l));
           const eqVal = ex.equipment || 'all';
           // With Chair → show chair + noChair (all); No Chair → show only noChair
           const eqMatch = selectedEquipment === 'With Chair'

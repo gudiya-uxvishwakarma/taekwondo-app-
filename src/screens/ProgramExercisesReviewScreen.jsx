@@ -35,6 +35,11 @@ const ProgramExercisesReviewScreen = ({ onBack, customization, onSelectExercise,
         if (json.status === 'success') {
           const all = json.data.exercises || [];
 
+          // Inclusive level hierarchy: Easy → [Easy], Advance → [Easy, Advance], Master → [Easy, Advance, Master]
+          const LEVEL_HIERARCHY = ['Easy', 'Advance', 'Master'];
+          const selectedLevelIndex = LEVEL_HIERARCHY.indexOf(selectedLevel);
+          const allowedLevels = LEVEL_HIERARCHY.slice(0, selectedLevelIndex + 1);
+
           // Filter by level and equipment
           const filtered = all.filter(ex => {
             // Program filter — support both legacy programId and new programIds array
@@ -45,8 +50,9 @@ const ProgramExercisesReviewScreen = ({ onBack, customization, onSelectExercise,
               if (exProgramIds.length > 0 && !exProgramIds.includes(String(programId))) return false;
             }
             const lvl = ex.level;
-            const levelMatch = !lvl || lvl.length === 0 ||
-              (Array.isArray(lvl) ? lvl.includes(selectedLevel) : lvl === selectedLevel);
+            const exLevels = Array.isArray(lvl) ? lvl : (lvl ? [lvl] : []);
+            const levelMatch = exLevels.length === 0 ||
+              exLevels.some(l => allowedLevels.includes(l));
             const eq = ex.equipment || 'all';
             const eqMatch = selectedEquipment === 'With Chair'
               ? true

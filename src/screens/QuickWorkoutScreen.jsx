@@ -11,10 +11,14 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing } from '../theme';
 import Icon from '../components/common/Icon';
 import QuickWorkoutTrainingScreen from './QuickWorkoutTrainingScreen';
 import API_CONFIG from '../config/api';
+
+const STORAGE_KEY_PROGRAM = 'quickworkout_selected_program';
+const STORAGE_KEY_CUSTOMIZATION = 'quickworkout_customization';
 
 const QuickWorkoutScreen = ({ onBack }) => {
   const [selectedProgram, setSelectedProgram] = useState(null);
@@ -32,6 +36,33 @@ const QuickWorkoutScreen = ({ onBack }) => {
     stretching: true,
     equipment: 'With Chair',
   });
+
+  // Load persisted selections on mount
+  useEffect(() => {
+    const loadSaved = async () => {
+      try {
+        const [savedProgram, savedCustomization] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY_PROGRAM),
+          AsyncStorage.getItem(STORAGE_KEY_CUSTOMIZATION),
+        ]);
+        if (savedProgram) setSelectedProgram(JSON.parse(savedProgram));
+        if (savedCustomization) setCustomization(JSON.parse(savedCustomization));
+      } catch (_) {}
+    };
+    loadSaved();
+  }, []);
+
+  // Persist selected program whenever it changes
+  const handleSelectProgram = (program) => {
+    setSelectedProgram(program);
+    AsyncStorage.setItem(STORAGE_KEY_PROGRAM, JSON.stringify(program)).catch(() => {});
+  };
+
+  // Persist customization whenever it changes
+  const handleSetCustomization = (next) => {
+    setCustomization(next);
+    AsyncStorage.setItem(STORAGE_KEY_CUSTOMIZATION, JSON.stringify(next)).catch(() => {});
+  };
 
   const serverBase = API_CONFIG.BASE_URL.replace('/api', '');
 
@@ -72,7 +103,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
 
         // Auto-select first item if nothing selected yet
         if (!selectedProgram && mappedPrograms.length > 0) {
-          setSelectedProgram(mappedPrograms[0]);
+          handleSelectProgram(mappedPrograms[0]);
         }
       } catch (err) {
         console.log('Failed to fetch belts/programs:', err.message);
@@ -140,7 +171,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                         selectedProgram?._id === belt._id && styles.programCardSelected,
                       ]}
                       activeOpacity={0.8}
-                      onPress={() => { setSelectedProgram(belt); setShowSelector(false); }}
+                      onPress={() => { handleSelectProgram(belt); setShowSelector(false); }}
                     >
                       <Text style={[styles.programTitle, selectedProgram?._id === belt._id && styles.programTitleSelected]}>
                         {belt.title}
@@ -165,7 +196,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                         selectedProgram?._id === program._id && styles.programCardSelected,
                       ]}
                       activeOpacity={0.8}
-                      onPress={() => { setSelectedProgram(program); setShowSelector(false); }}
+                      onPress={() => { handleSelectProgram(program); setShowSelector(false); }}
                     >
                       <Text style={[styles.programTitle, selectedProgram?._id === program._id && styles.programTitleSelected]}>
                         {program.title}
@@ -300,7 +331,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                 <TouchableOpacity 
                   style={[styles.customOption, { flex: 1 }]}
                   activeOpacity={0.7}
-                  onPress={() => setCustomization({...customization, warmUp: !customization.warmUp})}
+                  onPress={() => handleSetCustomization({...customization, warmUp: !customization.warmUp})}
                 >
                   <Text style={styles.customLabel}>WARM-UP</Text>
                   <View style={styles.customValueRow}>
@@ -311,7 +342,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                 <TouchableOpacity 
                   style={[styles.customOption, { flex: 1 }]}
                   activeOpacity={0.7}
-                  onPress={() => setCustomization({...customization, stretching: !customization.stretching})}
+                  onPress={() => handleSetCustomization({...customization, stretching: !customization.stretching})}
                 >
                   <Text style={styles.customLabel}>STRETCHING</Text>
                   <View style={styles.customValueRow}>
@@ -375,7 +406,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                   ]}
                   activeOpacity={0.8}
                   onPress={() => {
-                    setCustomization({ ...customization, level: level.name });
+                    handleSetCustomization({ ...customization, level: level.name });
                     setShowLevelPicker(false);
                   }}
                 >
@@ -436,7 +467,7 @@ const QuickWorkoutScreen = ({ onBack }) => {
                     ]}
                     activeOpacity={0.8}
                     onPress={() => {
-                      setCustomization({ ...customization, equipment: option });
+                      handleSetCustomization({ ...customization, equipment: option });
                       setShowEquipmentPicker(false);
                     }}
                   >
